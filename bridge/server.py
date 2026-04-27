@@ -97,6 +97,7 @@ async def handle_print_image(request: web.Request) -> web.Response:
     reader = await request.multipart()
     image_data = None
     dither = False
+    no_face = False
     field = await reader.next()
     while field is not None:
         if field.name == "image":
@@ -104,6 +105,9 @@ async def handle_print_image(request: web.Request) -> web.Response:
         elif field.name == "dither":
             val = (await field.read()).decode().strip()
             dither = val.lower() in ("true", "1", "yes")
+        elif field.name == "no_face":
+            val = (await field.read()).decode().strip()
+            no_face = val.lower() in ("true", "1", "yes")
         field = await reader.next()
 
     if not image_data:
@@ -119,7 +123,7 @@ async def handle_print_image(request: web.Request) -> web.Response:
                 im = bg
             else:
                 im = im.convert("L")
-            blocks = prepare_print_job_from_pil(im, print_id=print_id, dither=dither)
+            blocks = prepare_print_job_from_pil(im, print_id=print_id, dither=dither, no_face=no_face)
             await bridge.send_print_job(eui64, blocks)
         except Exception as exc:
             log.error("Print failed: %s", exc)
