@@ -1,13 +1,183 @@
-# little-printer-zigbee
+# Little Printer Bridge
 
-This readme file is just a placeholder, while I work on cleaning up the code and running some more tests before sharing it here , so we can hopefully revive more of these amazing little IoT printers.
+This script aims to replace the Berg bridge device with a Python script and EZSP USB Zigbee dongle. I hope this will be especially useful to anyone who no longer has a working bridge device, as many of them seem to have become corrupted over the years.
+
+Current this script as been tested on Linux and Windows, using a Sonoff ZBDongle-E. Hopefully we can get this to work on other systems as well, so feel free to share any issues or comments.
+
+## License
+In the spirit of open source this project is shared under a GNU GPLv3 license. This means you can use it pretty much in any way you like (including commercially) as long as you give proper attribution and share any changes you make. If you do make any changes that might benefit others, please share them here as a pull request as well, to prevent too many fractured versions of this code.
+
+Did you find this tool useful? Feel free to support my open source software (especially when used commercially)
+
+[![GitHub Sponsor](https://img.shields.io/badge/_-sponsor_on_Github-blue?logo=github)](https://github.com/sponsors/javl) [![BMC](https://img.shields.io/badge/Buy_Me_a_Coffee-orange?logo=buymeacoffee)](https://www.buymeacoffee.com/javl)
 
 ----
 
-After a lot of trail and error, I finally managed to bypass the old bridge device and print directly to my Berg Little Printer from my laptop, using a standard Zigbee USB dongle. This means no more bulky ethernet device connected to your router, but also no more bridge device period. This is especially good news for anyone who no longer has a working bridge device (as many of them seem to have become corrupted over the years).
+- [Little Printer Bridge](#little-printer-bridge)
+  - [License](#license)
+  - [Installation](#installation)
+  - [Option 1. Connect to Sirius](#option-1-connect-to-sirius)
+    - [Option 2. Local server and design tool](#option-2-local-server-and-design-tool)
+    - [Option 3. Print from commandline](#option-3-print-from-commandline)
+      - [Arguments](#arguments)
+      - [CLI Examples](#cli-examples)
+  - [Get claim code](#get-claim-code)
+  - [Faces / personality](#faces--personality)
+  - [config.json](#configjson)
+  - [Thanks](#thanks)
+
+
+
+## Installation
+
+Connecting to Little Printer to your bridge is done in a few steps:
+
+1. Start your server
+2. Start the Little Printer and get its claim code
+3. Enter the claim code on the commandline, or via the sirius website
+4. Print!
+
+To run the server you'll need to have Python3 installed. Cleanest way is to create a Pyhton virtual environment to prevent mixing dependencies with your global Python instance:
+
+```bash
+git clone git@github.com:javl/little-printer-zigbee-bridge.git
+cd little-printer-zigbee-bridge
+python3 -m venv venv
+source venv/bin/activate
+pip install -r bridge/requirements.txt
+```
+
+From here there are three options:
+1. Use with Sirius
+2. Run a local server with local design tool, or REST API
+3. Print from the commandline
+
+## Option 1. Connect to Sirius
+If you are using Sirius you can simply have the Zigbee bridge connect to it. By default it uses the [Nord Projects' Sirius instance](https://littleprinter.nordprojects.co/) and all you have to do is pass the `--sirius` flag:
+
+```bash
+python3 -m bridge.main --sirius
+```
+
+If you are running your own Sirius instance, pass its URL via `--sirius-server`:
+
+```bash
+python -m bridge.main --sirius --sirius-server https://example.com
+```
+
+### Option 2. Local server and design tool
+This project contains a very simple tool for creating receipts to print. I used this for testing so it doesn't have a lot of options (yet). One of the current quirks is that printing from this tool takes a lot longer than printing from Sirius (filesize?) but I thought it might be useful to add.
+
+Add text or image blocks using the buttons on the bottom left, and press the print button on the top right.
+
+![Simple receipt design tool](https://github.com/javl/little-printer-zigbee-bridge/blob/main/receipt-tool.jpg?raw=true)
+
+To start the server run:
+```bash
+python3 -m bridge.main --serve
+```
+You'll see the server's URL printed on the commandline (the default is [http://127.0.0.1:8080/](http://127.0.0.1:8080/)). Open that link in your browser to open the tool.
+
+### Option 3. Print from commandline
+Running the bridge from the commandline gives you a lot of extra arguments to use
+
+
+#### Arguments
+
+| Argument | Default | Description |
+|---|---|---|
+| `--image PATH` | - | Image file to print |
+| `--text TEXT` | - | Text to print (mutually exclusive with `--image`) |
+| `--face PATH` | - | Face image to upload via `set_personality` before printing **SEE FACES/PERSONALITY SECTION BELOW!** |
+| `--no-face` | face after print on | Skip printing the face after the message |
+| `--max-height PX` | - | Cap image height in pixels before encoding |
+| `--no-dither` | dithering on | Disable Floyd-Steinberg dithering |
+| `--port PORT` | from config | Serial port of the EZSP dongle (e.g. `/dev/ttyUSB0`) |
+| `--baud RATE` | from config | Baud rate for the serial port |
+| `--once` | - | Exit after printing instead of staying alive for heartbeats |
+| `--serve` | - | Run as a persistent HTTP server (see below) |
+| `--host HOST` | `127.0.0.1` | Bind address for the HTTP server |
+| `--http-port PORT` | `8080` | Port for the HTTP server |
+| `--to-image` | - | Render to `print.jpg` instead of sending to printer (skips Zigbee) |
+| `--sirius` | - | Connect to a Sirius server as a Berg bridge client |
+| `--sirius-server URL` | Nord Projects instance | WebSocket URL of the Sirius server |
+| `--debug` | - | Enable DEBUG-level logging |
+
+#### CLI Examples
+```bash
+# Print an image:
+python -m bridge.main --image photo.jpg
+
+# Print text:
+python -m bridge.main --text "Hello, World"
+
+# Don't use Zigbee, but parse the image and store it as print.jpg for testing
+python -m bridge.main --image photo.jpg --to-image
+
+# Print an image without dithering:
+python -m bridge.main --image photo.jpg --no-dither
+
+# Override serial port:
+python -m bridge.main --port /dev/ttyUSB1 --text "test"
+
+# Exit after printing (instead of staying alive for heartbeats):
+python -m bridge.main --text "test" --once
+```
 
 ----
 
-Feel free to support my open source software (especially when used commercially):
+## Get claim code
+1. Plug in your little printer
+2. Open it up and use something like a paperclip to press the button on the inside. Hold it down until the light turns off.
+3. Unplug the power adapter, put the paper back and close the printer.
+4. Power the printer again. Once it has detected your network the LED on top will change and the printer will generate a claim code. Press the button on top of the printer to print the code.
 
-[![GitHub Sponsor](https://img.shields.io/badge/_-sponsor_on_Github-blue?logo=github)](https://github.com/sponsors/javl) [![BMC](https://img.shields.io/badge/Buy_Me_a_Coffee-orange?logo=github)](https://www.buymeacoffee.com/javl)
+----
+
+
+## Faces / personality
+
+Originally the Little Printer would have a "personality": their face would change every now and then: the hair would grow, or they'd get a haircut, etc.
+The "personality" (the face printed at the end of each delivery) plus three status images (`nothing to print`, `can't see bridge`, `can't see internet`) are stored in the printer's flash memory.
+
+----
+
+> **Note: DANGER!**
+>
+> Using `set_personality` will overwrite the printer's flash! So this will overwrite whatever faces are currently stored on the printer! Currently the script will sent the personality image you provide, and send three fully white images for the status faces (as I wasn't able to find proper files for the original faces).
+>
+> To prevent any accidents, the option to use custom faces is currently disabled in the code. You need to remove the `raise NotImplementedError` in the `prepare_personality_job()` method in `protocol.py`.
+>
+> If you don't mind running the risk of overwriting the original faces, do give it a try and please report back so we can update this information!
+
+----
+
+You can update the personality and status images using `--face PATH`, where `PATH` points to the image you want to use as the face. When you pass this argument, two commands are sent before the content:
+
+1. `set_personality` (command `0x0102`): uploads the face image and blank white placeholders(!) for the three status slots.
+2. The delivery uses command `0x0001` (with-face) instead of `0x0011` (no-face).
+
+Without `--face`, command `0x0011` is used and no face is shown.
+
+To use real images for the status slots, edit `prepare_personality_job` in `protocol.py`. The four `im` values in the list correspond to: face, nothing-to-print, can't-see-bridge, can't-see-internet.
+
+
+## config.json
+
+Generated automatically on first run:
+
+| Field | Description |
+|---|---|
+| `ezsp_port` | Serial port of the EZSP dongle (e.g. `/dev/ttyUSB0`) |
+| `ezsp_baud` | Baud rate (typically 115200) |
+| `channel` | Zigbee channel (one of 11, 14, 15, 19, 20, 24, 25) |
+| `extended_pan_id` | 8-byte hex. First 4 bytes are always `42455247` ("BERG"): the printer scans for this prefix |
+| `network_key` | 16-byte hex AES network key, randomly generated |
+| `print_id` | Auto-incrementing counter, used to match print confirmations |
+| `devices` | Dict of EUI64 → `{claim_code, link_key}` for each paired printer |
+
+Do not change `extended_pan_id` or `network_key` after a printer has been paired. The printer would need to be re-paired.
+
+## Thanks
+* First of all, thanks to BERG for creating the Little Printer in the first place
+* and a huge thanks to [Nord Projects](https://nordprojects.com) for all their work in reviving the Cloud service, providing instructions on how to update the bridge device, and creating a new mobile app.
