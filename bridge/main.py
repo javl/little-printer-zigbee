@@ -1,8 +1,10 @@
 """
 Little Printer bridge. Runs on Linux, connects via EZSP USB dongle.
 
-Usage:
+Example usage:
     python -m bridge.main [--image PATH | --text "hello"] [--port /dev/ttyUSB0]
+
+See README.md in top directory for all arguments.
 
 On first run the printer will print a claim code. Enter it when prompted.
 All state (network key, link keys, etc.) is saved to bridge/config.json.
