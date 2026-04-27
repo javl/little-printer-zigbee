@@ -25,6 +25,7 @@ Did you find this tool useful? Feel free to support my open source tools (especi
   - [Faces / personality](#faces--personality)
   - [config.json](#configjson)
   - [Thanks](#thanks)
+  - [Random Notes](#random-notes)
 
 ---
 
@@ -189,3 +190,14 @@ Generated automatically on first run:
 
 - Thanks to BERG for creating the Little Printer
 - Huge thanks to [Nord Projects](https://nordprojects.com) for reviving the cloud service, providing instructions for updating the bridge device, and creating a new mobile app
+
+
+---
+
+## Random Notes
+- On Windows you'll need some drivers for the Sonos Zigbee dongle:
+
+    1. Download `CP210x Universal Windows Driver` from [over here](https://www.silabs.com/software-and-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads).
+    2. Extract the `.zip` file somewhere on your system
+    3. Open Device Manager, right click your dongle in the list and select `Update Driver`. Select the directory you extracted the driver to.
+    4. Find the Sonoff device under the `ports` section and note what com port it uses (like `COM3`) and update `bridge/config.json` accordingly (or pass `--port COMx` to the script)
