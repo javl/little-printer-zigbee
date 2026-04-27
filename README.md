@@ -25,7 +25,7 @@ Did you find this tool useful? Feel free to support my open source tools (especi
   - [Faces / personality](#faces--personality)
   - [config.json](#configjson)
   - [Thanks](#thanks)
-  - [Random Notes](#random-notes)
+  - [Random Error Fixes / Notes](#random-error-fixes--notes)
 
 ---
 
@@ -192,10 +192,17 @@ Generated automatically on first run:
 
 ---
 
-## Random Notes
+## Random Error Fixes / Notes
+- `FileNotFoundError: [Errno 2] No such file or directory: '/dev/ttyUSB0'`
+
+    This means your dongle wasn't detected at the given port. Make sure it is plugged in and update the port in `config.json` if needed.
 - On Windows you'll need some drivers for the Sonos Zigbee dongle:
 
     1. Download `CP210x Universal Windows Driver` from [over here](https://www.silabs.com/software-and-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads).
     2. Extract the `.zip` file somewhere on your system
     3. Open Device Manager, right click your dongle in the list and select `Update Driver`. Select the directory you extracted the driver to.
     4. Find the Sonoff device under the `ports` section and note what com port it uses (like `COM3`) and update `bridge/config.json` accordingly (or pass `--port COMx` to the script)
+
+- `ImportError: libopenjp2.so.7: cannot open shared object file: No such file or directory`
+
+    Install the right module using `sudo apt-get install libopenjp2-7`
