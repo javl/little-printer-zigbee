@@ -47,6 +47,8 @@ Connecting a Little Printer to your bridge takes a few steps:
 3. Enter the claim code on the commandline or via the Sirius website
 4. Print!
 
+> **Note:** On first run the script creates a `config.json` file and sets the device port to `/dev/ttyUSB0` on Unix or `COM3` on Windows. Update this value to the actual port used if needed and restart the script
+
 From here there are three options:
 
 1. Use with Sirius

@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Little Printer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #e0e0e0;
+      color: #222;
+    }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      height: 48px;
+      background: #1a1a1a;
+      color: #fff;
+      flex-shrink: 0;
+      gap: 16px;
+    }
+    .title { font-weight: 600; font-size: 15px; letter-spacing: 0.02em; }
+
+    .toolbar-right { display: flex; align-items: center; gap: 10px; }
+
+    #status-indicator { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #aaa; }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #555;
+      flex-shrink: 0;
+    }
+    .dot.connected    { background: #4caf50; }
+    .dot.busy         { background: #ff9800; }
+    .dot.disconnected { background: #f44336; }
+
+    .dither-label {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 13px; color: #ccc; cursor: pointer; user-select: none;
+    }
+    .dither-label input { cursor: pointer; }
+
+    .toolbar-btn {
+      padding: 6px 14px;
+      border: none; border-radius: 4px;
+      cursor: pointer; font-size: 13px; font-weight: 500;
+    }
+    #btn-save  { background: #444; color: #fff; }
+    #btn-save:hover  { background: #555; }
+    #btn-print { background: #fff; color: #1a1a1a; }
+    #btn-print:hover { background: #e8e8e8; }
+    .toolbar-btn:disabled { opacity: 0.5; cursor: default; }
+
+    /* ── Main layout ── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Editor panel ── */
+    #editor-panel {
+      width: 340px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: #f2f2f2;
+      border-right: 1px solid #ccc;
+    }
+
+    #blocks-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .empty-hint {
+      color: #aaa; font-size: 13px; text-align: center;
+      padding: 32px 16px; line-height: 1.6;
+    }
+
+    #add-bar {
+      padding: 10px 12px;
+      border-top: 1px solid #ddd;
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .add-btn {
+      flex: 1; padding: 8px;
+      border: 1px dashed #aaa; border-radius: 4px;
+      background: #fff; cursor: pointer; font-size: 13px;
+    }
+    .add-btn:hover { background: #f7f7f7; border-color: #555; }
+
+    /* ── Block cards ── */
+    .block-card {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .block-header {
+      display: flex; align-items: center; gap: 4px;
+      padding: 5px 8px;
+      background: #f7f7f7;
+      border-bottom: 1px solid #eee;
+    }
+    .block-type-label {
+      flex: 1; font-size: 11px; font-weight: 700;
+      color: #888; letter-spacing: 0.06em;
+    }
+    .move-btn {
+      border: none; background: none; cursor: pointer;
+      padding: 2px 5px; border-radius: 3px;
+      font-size: 13px; color: #666; line-height: 1;
+    }
+    .move-btn:hover:not(:disabled) { background: #eee; color: #222; }
+    .move-btn:disabled { opacity: 0.25; cursor: default; }
+    .remove-btn {
+      border: none; background: none; cursor: pointer;
+      padding: 2px 6px; border-radius: 3px;
+      font-size: 13px; color: #999; line-height: 1;
+    }
+    .remove-btn:hover { background: #fee; color: #c00; }
+
+    .block-body {
+      padding: 10px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+
+    textarea {
+      width: 100%; min-height: 72px;
+      border: 1px solid #ddd; border-radius: 4px;
+      padding: 6px 8px; font-size: 13px;
+      resize: vertical; font-family: inherit;
+      line-height: 1.4;
+    }
+    textarea:focus { outline: none; border-color: #888; }
+
+    .text-controls {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .ctrl-label {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 12px; color: #666;
+    }
+    .ctrl-label select {
+      border: 1px solid #ddd; border-radius: 3px;
+      padding: 2px 4px; font-size: 12px; background: #fff;
+    }
+    .ctrl-label input[type=checkbox] { cursor: pointer; }
+
+    .align-controls { display: flex; gap: 4px; }
+    .align-btn {
+      flex: 1; padding: 4px 0;
+      border: 1px solid #ddd; border-radius: 3px;
+      background: #fff; cursor: pointer;
+      font-size: 12px; color: #555;
+    }
+    .align-btn:hover:not(.active) { background: #f0f0f0; }
+    .align-btn.active { background: #222; color: #fff; border-color: #222; }
+
+    /* ── Image drop zone ── */
+    .image-drop-zone {
+      border: 2px dashed #ccc; border-radius: 4px;
+      padding: 24px 16px; text-align: center;
+      cursor: pointer; color: #999; font-size: 13px;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+    .image-drop-zone:hover, .image-drop-zone.dragover {
+      border-color: #666; background: #fafafa; color: #555;
+    }
+    .image-drop-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .block-img-thumb {
+      width: 100%; border-radius: 3px; display: block;
+    }
+
+    /* ── Preview panel ── */
+    #preview-panel {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px;
+      background: #ccc;
+    }
+
+    #receipt-wrapper {
+      box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+    }
+
+    #preview { display: block; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 20px; left: 50%;
+      transform: translateX(-50%);
+      background: #333; color: #fff;
+      padding: 9px 20px; border-radius: 6px;
+      font-size: 13px; z-index: 200;
+      transition: opacity 0.25s;
+      pointer-events: none;
+    }
+    #toast.hidden   { opacity: 0; }
+    #toast.error    { background: #b00020; }
+    #toast.success  { background: #2e7d32; }
+  </style>
+</head>
+<body>
+
+<header id="toolbar">
+  <span class="title">Little Printer</span>
+  <div class="toolbar-right">
+    <span id="status-indicator">
+      <span class="dot" id="status-dot"></span>
+      <span id="status-text">-</span>
+    </span>
+    <label class="dither-label">
+      <input type="checkbox" checked="checked" id="dither-toggle"> Dither
+    </label>
+    <button class="toolbar-btn" id="btn-save" onclick="saveReceipt()">Save</button>
+    <button class="toolbar-btn" id="btn-print" onclick="printReceipt()">Print</button>
+  </div>
+</header>
+
+<div id="main">
+  <div id="editor-panel">
+    <div id="blocks-list"></div>
+    <div id="add-bar">
+      <button class="add-btn" onclick="addTextBlock()">+ Text</button>
+      <button class="add-btn" onclick="addImageBlock()">+ Image</button>
+    </div>
+  </div>
+
+  <div id="preview-panel">
+    <div id="receipt-wrapper">
+      <canvas id="preview" width="384"></canvas>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+'use strict';
+
+const PRINT_WIDTH = 384;
+const PAD = 8;
+
+// ── State ──────────────────────────────────────────────────────────────────
+
+const state = {
+  blocks: [],
+  nextId: 1,
+  dither: true,
+};
+
+// ── Block management ───────────────────────────────────────────────────────
+
+function addTextBlock() {
+  state.blocks.push({
+    id: state.nextId++,
+    type: 'text',
+    text: '',
+    fontFamily: 'sans-serif',
+    fontSize: 24,
+    bold: false,
+    align: 'left',
+  });
+  refreshUI();
+}
+
+function addImageBlock() {
+  state.blocks.push({
+    id: state.nextId++,
+    type: 'image',
+    imageSrc: null,
+    imageEl: null,
+  });
+  refreshUI();
+}
+
+function removeBlock(id) {
+  state.blocks = state.blocks.filter(b => b.id !== id);
+  refreshUI();
+}
+
+function moveBlock(id, dir) {
+  const idx = state.blocks.findIndex(b => b.id === id);
+  const next = idx + dir;
+  if (next < 0 || next >= state.blocks.length) return;
+  [state.blocks[idx], state.blocks[next]] = [state.blocks[next], state.blocks[idx]];
+  refreshUI();
+}
+
+function patchBlock(id, props) {
+  const b = state.blocks.find(b => b.id === id);
+  if (b) Object.assign(b, props);
+}
+
+// ── UI rendering ───────────────────────────────────────────────────────────
+
+function refreshUI() {
+  renderBlockList();
+  renderPreview();
+}
+
+function renderBlockList() {
+  const list = document.getElementById('blocks-list');
+  list.innerHTML = '';
+
+  if (state.blocks.length === 0) {
+    list.innerHTML = '<p class="empty-hint">No blocks yet.<br>Add a text or image block below.</p>';
+    return;
+  }
+
+  state.blocks.forEach((block, idx) => {
+    list.appendChild(buildCard(block, idx, state.blocks.length));
+  });
+}
+
+function buildCard(block, idx, total) {
+  const card = document.createElement('div');
+  card.className = 'block-card';
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.className = 'block-header';
+
+  const up = btn('↑', 'move-btn', () => moveBlock(block.id, -1));
+  up.disabled = idx === 0;
+
+  const dn = btn('↓', 'move-btn', () => moveBlock(block.id, 1));
+  dn.disabled = idx === total - 1;
+
+  const lbl = document.createElement('span');
+  lbl.className = 'block-type-label';
+  lbl.textContent = block.type.toUpperCase();
+
+  const rm = btn('✕', 'remove-btn', () => removeBlock(block.id));
+
+  hdr.append(up, dn, lbl, rm);
+  card.appendChild(hdr);
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'block-body';
+  block.type === 'text' ? buildTextBody(body, block) : buildImageBody(body, block);
+  card.appendChild(body);
+
+  return card;
+}
+
+function btn(text, cls, onclick) {
+  const b = document.createElement('button');
+  b.className = cls;
+  b.textContent = text;
+  b.onclick = onclick;
+  return b;
+}
+
+function buildTextBody(body, block) {
+  // Textarea
+  const ta = document.createElement('textarea');
+  ta.placeholder = 'Enter text…';
+  ta.value = block.text;
+  ta.oninput = () => { patchBlock(block.id, { text: ta.value }); renderPreview(); };
+  body.appendChild(ta);
+
+  // Font + size + bold
+  const controls = document.createElement('div');
+  controls.className = 'text-controls';
+
+  const familyLbl = document.createElement('label');
+  familyLbl.className = 'ctrl-label';
+  familyLbl.textContent = 'Font ';
+  const familySel = document.createElement('select');
+  [['sans-serif','Sans-serif'], ['serif','Serif'], ['monospace','Monospace']].forEach(([v, t]) => {
+    familySel.appendChild(new Option(t, v, false, block.fontFamily === v));
+  });
+  familySel.onchange = () => { patchBlock(block.id, { fontFamily: familySel.value }); refreshUI(); };
+  familyLbl.appendChild(familySel);
+
+  const sizeLbl = document.createElement('label');
+  sizeLbl.className = 'ctrl-label';
+  sizeLbl.textContent = 'Size ';
+  const sizeSel = document.createElement('select');
+  [12, 16, 20, 24, 32, 48].forEach(s => {
+    sizeSel.appendChild(new Option(s, s, false, block.fontSize === s));
+  });
+  sizeSel.onchange = () => { patchBlock(block.id, { fontSize: +sizeSel.value }); refreshUI(); };
+  sizeLbl.appendChild(sizeSel);
+
+  const boldLbl = document.createElement('label');
+  boldLbl.className = 'ctrl-label';
+  const boldCb = document.createElement('input');
+  boldCb.type = 'checkbox';
+  boldCb.checked = block.bold;
+  boldCb.onchange = () => { patchBlock(block.id, { bold: boldCb.checked }); refreshUI(); };
+  boldLbl.append(boldCb, ' Bold');
+
+  controls.append(familyLbl, sizeLbl, boldLbl);
+  body.appendChild(controls);
+
+  // Alignment
+  const alignDiv = document.createElement('div');
+  alignDiv.className = 'align-controls';
+  [['left','Left'], ['center','Center'], ['right','Right']].forEach(([v, t]) => {
+    const b = document.createElement('button');
+    b.className = 'align-btn' + (block.align === v ? ' active' : '');
+    b.textContent = t;
+    b.onclick = () => { patchBlock(block.id, { align: v }); refreshUI(); };
+    alignDiv.appendChild(b);
+  });
+  body.appendChild(alignDiv);
+}
+
+function buildImageBody(body, block) {
+  const zone = document.createElement('div');
+  zone.className = 'image-drop-zone';
+
+  if (block.imageSrc) {
+    const img = document.createElement('img');
+    img.src = block.imageSrc;
+    img.className = 'block-img-thumb';
+    zone.appendChild(img);
+  } else {
+    zone.textContent = 'Click or drop an image here';
+  }
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = () => { if (input.files[0]) loadImageFile(block.id, input.files[0]); };
+  zone.appendChild(input);
+
+  zone.ondragover = e => { e.preventDefault(); zone.classList.add('dragover'); };
+  zone.ondragleave = () => zone.classList.remove('dragover');
+  zone.ondrop = e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) loadImageFile(block.id, f);
+  };
+
+  body.appendChild(zone);
+}
+
+function loadImageFile(blockId, file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const src = e.target.result;
+    const img = new Image();
+    img.onload = () => { patchBlock(blockId, { imageSrc: src, imageEl: img }); refreshUI(); };
+    img.src = src;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Canvas rendering ───────────────────────────────────────────────────────
+
+function wrapText(ctx, text, maxWidth) {
+  const lines = [];
+  for (const raw of text.split('\n')) {
+    if (!raw) { lines.push(''); continue; }
+    const words = raw.split(' ');
+    let line = '';
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (line && ctx.measureText(test).width > maxWidth) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
+function blockHeight(ctx, block) {
+  if (block.type === 'text') {
+    if (!block.text.trim()) return 0;
+    ctx.font = `${block.bold ? 'bold ' : ''}${block.fontSize}px ${block.fontFamily}`;
+    const lines = wrapText(ctx, block.text, PRINT_WIDTH - PAD * 2);
+    return Math.ceil(lines.length * block.fontSize * 1.25 + PAD * 2);
+  }
+  if (block.type === 'image' && block.imageEl) {
+    return Math.round(block.imageEl.naturalHeight * PRINT_WIDTH / block.imageEl.naturalWidth);
+  }
+  return 0;
+}
+
+function applyThreshold(imageData) {
+  const d = imageData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    const v = g < 128 ? 0 : 255;
+    d[i] = d[i + 1] = d[i + 2] = v;
+    d[i + 3] = 255;
+  }
+}
+
+function applyDither(imageData) {
+  const w = imageData.width;
+  const h = imageData.height;
+  const d = imageData.data;
+  const buf = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    buf[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const old = buf[i];
+      const nv  = old < 128 ? 0 : 255;
+      const err = old - nv;
+      buf[i] = nv;
+      if (x + 1 < w)           buf[i + 1]     += err * 7 / 16;
+      if (y + 1 < h) {
+        if (x > 0)              buf[i + w - 1] += err * 3 / 16;
+                                buf[i + w]     += err * 5 / 16;
+        if (x + 1 < w)         buf[i + w + 1] += err * 1 / 16;
+      }
+    }
+  }
+  for (let i = 0; i < w * h; i++) {
+    const v = Math.max(0, Math.min(255, Math.round(buf[i])));
+    d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v;
+    d[i * 4 + 3] = 255;
+  }
+}
+
+function renderPreview() {
+  const canvas = document.getElementById('preview');
+  const ctx = canvas.getContext('2d');
+
+  const heights = state.blocks.map(b => blockHeight(ctx, b));
+  const totalH = heights.reduce((a, b) => a + b, 0);
+
+  if (totalH === 0) {
+    canvas.height = 200;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, PRINT_WIDTH, 200);
+    ctx.fillStyle = '#ccc';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Add blocks to see a preview', PRINT_WIDTH / 2, 100);
+    return;
+  }
+
+  canvas.height = totalH;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, PRINT_WIDTH, totalH);
+
+  let y = 0;
+  state.blocks.forEach((block, i) => {
+    const h = heights[i];
+    if (h <= 0) return;
+
+    if (block.type === 'text' && block.text.trim()) {
+      ctx.font = `${block.bold ? 'bold ' : ''}${block.fontSize}px ${block.fontFamily}`;
+      ctx.fillStyle = '#000';
+      ctx.textBaseline = 'top';
+      ctx.textAlign = block.align;
+
+      const lineH = block.fontSize * 1.25;
+      const maxW = PRINT_WIDTH - PAD * 2;
+      const lines = wrapText(ctx, block.text, maxW);
+
+      const x = block.align === 'left' ? PAD
+               : block.align === 'center' ? PRINT_WIDTH / 2
+               : PRINT_WIDTH - PAD;
+
+      lines.forEach((line, li) => {
+        ctx.fillText(line, x, y + PAD + li * lineH);
+      });
+
+      // threshold text region to kill anti-alias gray fringing
+      const td = ctx.getImageData(0, y, PRINT_WIDTH, h);
+      applyThreshold(td);
+      ctx.putImageData(td, 0, y);
+    }
+
+    if (block.type === 'image' && block.imageEl) {
+      ctx.drawImage(block.imageEl, 0, y, PRINT_WIDTH, h);
+
+      const id = ctx.getImageData(0, y, PRINT_WIDTH, h);
+      state.dither ? applyDither(id) : applyThreshold(id);
+      ctx.putImageData(id, 0, y);
+    }
+
+    y += h;
+  });
+}
+
+// ── Status polling ─────────────────────────────────────────────────────────
+
+async function pollStatus() {
+  try {
+    const res = await fetch('/status');
+    const data = await res.json();
+    const dot  = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+
+    if (!data.printer) {
+      dot.className = 'dot disconnected';
+      text.textContent = 'No printer';
+    } else if (data.busy) {
+      dot.className = 'dot busy';
+      text.textContent = 'Printing…';
+    } else {
+      dot.className = 'dot connected';
+      text.textContent = 'Ready';
+    }
+  } catch {
+    document.getElementById('status-dot').className = 'dot disconnected';
+    document.getElementById('status-text').textContent = 'Server offline';
+  }
+}
+
+// ── Print / Save ───────────────────────────────────────────────────────────
+
+function getCanvasBlob() {
+  return new Promise(resolve =>
+    document.getElementById('preview').toBlob(resolve, 'image/png')
+  );
+}
+
+async function printReceipt() {
+  if (state.blocks.length === 0) { showToast('Add some blocks first', 'error'); return; }
+
+  const printBtn = document.getElementById('btn-print');
+  printBtn.disabled = true;
+  printBtn.textContent = 'Printing…';
+
+  try {
+    const blob = await getCanvasBlob();
+    const fd = new FormData();
+    fd.append('image', blob, 'receipt.png');
+    fd.append('dither', state.dither ? 'true' : 'false');
+
+    const res  = await fetch('/print-image', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (!res.ok) showToast(data.error || 'Print failed', 'error');
+    else showToast('Sent to printer ✓', 'success');
+  } catch {
+    showToast('Network error', 'error');
+  } finally {
+    printBtn.disabled = false;
+    printBtn.textContent = 'Print';
+  }
+}
+
+function saveReceipt() {
+  if (state.blocks.length === 0) { showToast('Add some blocks first', 'error'); return; }
+  const a = document.createElement('a');
+  a.download = 'receipt.png';
+  a.href = document.getElementById('preview').toDataURL('image/png');
+  a.click();
+  showToast('Saved!', 'success');
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+
+let toastTimer;
+function showToast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = 'hidden'; }, 3000);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+
+document.getElementById('dither-toggle').onchange = e => { state.dither = e.target.checked; renderPreview(); };
+
+pollStatus();
+setInterval(pollStatus, 4000);
+refreshUI();
+</script>
+</body>
+</html>
