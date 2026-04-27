@@ -120,45 +120,48 @@ async def run(args):
         cfg["ezsp_baud"] = args.baud
 
     bridge = LittlePrinterBridge(cfg)
-    await bridge.start()
-    await bridge.preinstall_known_keys(cfg["devices"])
+    try:
+        await bridge.start()
+        await bridge.preinstall_known_keys(cfg["devices"])
 
-    print_target: dict | None = None
-    if args.image or args.text:
-        print_target = {"image": args.image, "text": args.text, "face": args.face, "no_face": args.no_face, "max_height": args.max_height, "dither": args.no_dither}
+        print_target: dict | None = None
+        if args.image or args.text:
+            print_target = {"image": args.image, "text": args.text, "face": args.face, "no_face": args.no_face, "max_height": args.max_height, "dither": args.no_dither}
 
-    # If we already know a printer and have its short address mapped, skip join wait.
-    # Otherwise, wait for it to join (or rejoin).
-    known_eui64 = _find_paired_printer(cfg)
+        # If we already know a printer and have its short address mapped, skip join wait.
+        # Otherwise, wait for it to join (or rejoin).
+        known_eui64 = _find_paired_printer(cfg)
 
-    if known_eui64:
-        # Printer is in config: wait for it to show up (join or heartbeat), then print.
-        log.info("Waiting for printer %s to be reachable...", known_eui64)
-        await bridge.wait_for_printer_reachable(known_eui64)
+        if known_eui64:
+            # Printer is in config: wait for it to show up (join or heartbeat), then print.
+            log.info("Waiting for printer %s to be reachable...", known_eui64)
+            await bridge.wait_for_printer_reachable(known_eui64)
+            if print_target:
+                await _do_print(bridge, known_eui64, print_target, cfg)
+            if not args.once:
+                await _run_forever(bridge, cfg)
+            return
+
+        # No known printer: wait for one to join and go through the claim code flow.
+        # Flow for new printer:
+        #   1st event: DENY_JOIN  → handle_join installs key, loops back
+        #   2nd event: ACCEPTED   → printer is ready
+        target_eui64: str | None = None
+
+        while target_eui64 is None:
+            log.info("Waiting for printer to join...")
+            event = await bridge.wait_for_join()
+            await handle_join(bridge, event, cfg)
+            if event.policy_decision != DENY_JOIN:
+                target_eui64 = event.eui64_hex
+
         if print_target:
-            await _do_print(bridge, known_eui64, print_target, cfg)
+            await _do_print(bridge, target_eui64, print_target, cfg)
+
         if not args.once:
             await _run_forever(bridge, cfg)
-        return
-
-    # No known printer: wait for one to join and go through the claim code flow.
-    # Flow for new printer:
-    #   1st event: DENY_JOIN  → handle_join installs key, loops back
-    #   2nd event: ACCEPTED   → printer is ready
-    target_eui64: str | None = None
-
-    while target_eui64 is None:
-        log.info("Waiting for printer to join...")
-        event = await bridge.wait_for_join()
-        await handle_join(bridge, event, cfg)
-        if event.policy_decision != DENY_JOIN:
-            target_eui64 = event.eui64_hex
-
-    if print_target:
-        await _do_print(bridge, target_eui64, print_target, cfg)
-
-    if not args.once:
-        await _run_forever(bridge, cfg)
+    finally:
+        await bridge.stop()
 
 
 async def _do_print(bridge: LittlePrinterBridge, eui64_hex: str, target: dict, cfg: dict):
@@ -219,20 +222,22 @@ async def serve_mode(args):
         cfg["ezsp_baud"] = args.baud
 
     bridge = LittlePrinterBridge(cfg)
+    try:
+        await bridge.start()
+        await bridge.preinstall_known_keys(cfg["devices"])
 
-    await bridge.start()
-    await bridge.preinstall_known_keys(cfg["devices"])
+        async def join_loop():
+            while True:
+                event = await bridge.wait_for_join()
+                await handle_join(bridge, event, cfg)
 
-    async def join_loop():
-        while True:
-            event = await bridge.wait_for_join()
-            await handle_join(bridge, event, cfg)
+        print_lock = asyncio.Lock()
+        app = make_app(bridge, cfg, print_lock)
 
-    print_lock = asyncio.Lock()
-    app = make_app(bridge, cfg, print_lock)
-
-    log.info("Serving. Send prints to http://%s:%d/print", args.host, args.http_port)
-    await asyncio.gather(join_loop(), run_server(app, args.host, args.http_port))
+        log.info("Serving. Send prints to http://%s:%d/print", args.host, args.http_port)
+        await asyncio.gather(join_loop(), run_server(app, args.host, args.http_port))
+    finally:
+        await bridge.stop()
 
 
 async def run_sirius(args):
@@ -243,27 +248,30 @@ async def run_sirius(args):
         cfg["ezsp_baud"] = args.baud
 
     bridge = LittlePrinterBridge(cfg)
-    await bridge.start()
-    await bridge.preinstall_known_keys(cfg["devices"])
-
-    server_url = args.sirius_server or DEFAULT_SERVER_URL
-    sirius = SiriusClient(bridge, cfg, server_url)
-    await sirius.connect()
-
-    async def join_loop():
-        while True:
-            event = await bridge.wait_for_join()
-            device_address = event.eui64_le[::-1].hex()  # BE for sirius
-            if event.policy_decision == DENY_JOIN:
-                await sirius.send_encryption_key_required(device_address)
-            else:
-                await sirius.send_device_connect(device_address)
-
-    log.info("Sirius mode running. Waiting for printer and Nord server commands.")
     try:
-        await asyncio.gather(join_loop(), sirius.receive_forever())
-    except asyncio.CancelledError:
-        pass
+        await bridge.start()
+        await bridge.preinstall_known_keys(cfg["devices"])
+
+        server_url = args.sirius_server or DEFAULT_SERVER_URL
+        sirius = SiriusClient(bridge, cfg, server_url)
+        await sirius.connect()
+
+        async def join_loop():
+            while True:
+                event = await bridge.wait_for_join()
+                device_address = event.eui64_le[::-1].hex()  # BE for sirius
+                if event.policy_decision == DENY_JOIN:
+                    await sirius.send_encryption_key_required(device_address)
+                else:
+                    await sirius.send_device_connect(device_address)
+
+        log.info("Sirius mode running. Waiting for printer and Nord server commands.")
+        try:
+            await asyncio.gather(join_loop(), sirius.receive_forever())
+        except asyncio.CancelledError:
+            pass
+    finally:
+        await bridge.stop()
 
 
 def _find_paired_printer(cfg: dict) -> str | None:

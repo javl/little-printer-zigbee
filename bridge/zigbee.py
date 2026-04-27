@@ -86,12 +86,15 @@ class LittlePrinterBridge:
         # Caller can set this to receive EVENT_DID_PRINT / EVENT_DID_POWER_ON
         self.on_printer_event: Optional[Callable] = None
 
+        self._loop: asyncio.AbstractEventLoop | None = None
+
     # ── Startup ───────────────────────────────────────────────────────────────
 
     async def start(self):
         cfg = self._cfg
         log.info("Connecting to EZSP on %s at %d baud", cfg["ezsp_port"], cfg["ezsp_baud"])
 
+        self._loop = asyncio.get_running_loop()
         self._ezsp = EZSP({"path": cfg["ezsp_port"], "baudrate": cfg["ezsp_baud"], "flow_control": None})
         await self._ezsp.connect()
         self._ezsp.add_callback(self._on_frame)
@@ -109,6 +112,14 @@ class LittlePrinterBridge:
         await self._open_joining()
         await self._log_network_params()
         log.info("Bridge ready: printer may now join")
+
+    async def stop(self):
+        if self._ezsp is not None:
+            try:
+                await self._ezsp.disconnect()
+            except Exception as exc:
+                log.debug("EZSP disconnect: %s", exc)
+            self._ezsp = None
 
     async def preinstall_known_keys(self, devices: dict):
         """Install all link keys from config into the NCP key table on startup."""
@@ -559,7 +570,7 @@ class LittlePrinterBridge:
             self._set_addr(eui64_hex, int(node_id))
 
         event = PrinterJoinEvent(int(node_id), eui64_le, int(policy_decision))
-        asyncio.get_event_loop().create_task(self._join_queue.put(event))
+        self._loop.create_task(self._join_queue.put(event))  # type: ignore[union-attr]
 
     def _handle_incoming(self, args):
         # (type, apsFrame, lastHopLqi, lastHopRssi, sender, bindingIndex, addressIndex, message)
@@ -576,7 +587,7 @@ class LittlePrinterBridge:
                 # accepted join so the main loop can trigger the claim-code / config-save flow.
                 eui64_le = bytes.fromhex(eui64_hex)
                 synthetic = PrinterJoinEvent(int(sender), eui64_le, 0)
-                asyncio.get_event_loop().create_task(self._join_queue.put(synthetic))
+                self._loop.create_task(self._join_queue.put(synthetic))  # type: ignore[union-attr]
 
         if int(aps_frame.profileId) != PROFILE_ID or int(aps_frame.clusterId) != CLUSTER_ID:
             return
