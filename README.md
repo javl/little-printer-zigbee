@@ -85,8 +85,6 @@ python3 -m bridge.main --sirius --sirius-server https://example.com
 
 This project includes a simple tool for creating receipts to print. Add text or image blocks using the buttons on the bottom left, then press the print button on the top right.
 
-> **Note:** The tool isn't very optimized yet and printing will be a fair bit slower than when you're printing from Sirius. Something we can fix.
-
 ![Simple receipt design tool](https://github.com/javl/little-printer-zigbee-bridge/blob/main/receipt-tool.jpg?raw=true)
 
 Start the server:
