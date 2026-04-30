@@ -38,7 +38,7 @@ Did you find this tool useful? Feel free to support my open source tools - espec
 
 Below are the instructions on running the code on your own system, for use as a commandline tool, or for using the built-in receipt designer tool.
 
-If all you want to do is get a working bridge check out [these instructions](https://github.com/javl/little-printer-zigbee-bridge/wiki/Install-on-Raspberry-Pi-for-use-with-Sirius) on flashing the code to a Raspberry Pi.
+If all you want to do is get a working bridge you can ignore this section: check out [these instructions on the wiki](https://github.com/javl/little-printer-zigbee-bridge/wiki/Install-on-Raspberry-Pi-for-use-with-Sirius) on flashing the code to a Raspberry Pi instead.
 
 ---
 
