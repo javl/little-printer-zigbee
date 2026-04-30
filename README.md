@@ -197,8 +197,9 @@ Generated automatically on first run:
 
 ## Thanks
 
-- Thanks to BERG for creating the Little Printer
+- Thanks to [BERG](https://berglondon.com/projects/) for creating the Little Printer in the first place
 - Huge thanks to [Nord Projects](https://nordprojects.com) for reviving the cloud service, providing instructions for updating the bridge device, and creating a new mobile app
+- Anyone who donated to support my open source projects
 
 
 ---
