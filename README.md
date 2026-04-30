@@ -1,4 +1,4 @@
-# Little Printer Bridge
+# Little Printer Zigbee Bridge
 
 ![Little Printer and a custom bridge device](https://github.com/javl/little-printer-zigbee-bridge/blob/main/header.jpg?raw=true)
 
