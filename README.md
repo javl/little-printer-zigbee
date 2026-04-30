@@ -9,9 +9,10 @@ You can control the Little Printer from your computer, or simply use a Raspberry
 Tested on Linux and Windows using a Sonoff ZBDongle-E. Feel free to share issues or comments if you've tested it working on other systems.
 
 
-## License and Supporting
+## License
 In the spirit of open source this project is shared under a GNU GPLv3 license. This means you can use it pretty much in any way you like (including commercially) as long as you give proper attribution and share any changes you make. If you do make any changes that might benefit others, please share them here as a pull request as well, to prevent too many fractured versions of this code.
 
+## Support
 Did you find this tool useful? Feel free to support my open source tools - especially when using them commercially:
 
 [![GitHub Sponsor](https://img.shields.io/badge/_-sponsor_on_Github-blue?logo=github)](https://github.com/sponsors/javl) [![BMC](https://img.shields.io/badge/Buy_Me_a_Coffee-orange?logo=buymeacoffee)](https://www.buymeacoffee.com/javl)
