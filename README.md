@@ -1,13 +1,18 @@
 # Little Printer Bridge
 
-Replace the Berg bridge device with a Python script and EZSP USB Zigbee dongle. Especially useful if your original bridge has become corrupted (as many have over the years).
+![Little Printer and a custom bridge device](https://github.com/javl/little-printer-zigbee-bridge/blob/main/header.jpg?raw=true)
+
+Replace your Little Printer's original bridge device with a Python script and EZSP USB Zigbee dongle. Especially useful if your original bridge has become corrupted (as many have over the years).
+
+You can control the Little Printer from your computer, or simply use a Raspberry Pi to fully replace the bridge. Flash the image, update the network settings and you're ready to print! [Full instructions over here](https://github.com/javl/little-printer-zigbee-bridge/wiki/Install-on-Raspberry-Pi-for-use-with-Sirius)
 
 Tested on Linux and Windows using a Sonoff ZBDongle-E. Feel free to share issues or comments if you've tested it working on other systems.
+
 
 ## License
 In the spirit of open source this project is shared under a GNU GPLv3 license. This means you can use it pretty much in any way you like (including commercially) as long as you give proper attribution and share any changes you make. If you do make any changes that might benefit others, please share them here as a pull request as well, to prevent too many fractured versions of this code.
 
-Did you find this tool useful? Feel free to support my open source tools (especially when used commercially):
+Did you find this tool useful? Feel free to support my open source tools - especially when using them commercially:
 
 [![GitHub Sponsor](https://img.shields.io/badge/_-sponsor_on_Github-blue?logo=github)](https://github.com/sponsors/javl) [![BMC](https://img.shields.io/badge/Buy_Me_a_Coffee-orange?logo=buymeacoffee)](https://www.buymeacoffee.com/javl)
 
@@ -31,7 +36,13 @@ Did you find this tool useful? Feel free to support my open source tools (especi
 
 ## Installation
 
-You'll need Python 3 installed. Create a virtual environment to keep dependencies isolated:
+Below are the instructions on running the code on your own system, for use as a commandline tool, or for using the built-in receipt designer tool.
+
+If all you want to do is get a working bridge check out [these instructions](https://github.com/javl/little-printer-zigbee-bridge/wiki/Install-on-Raspberry-Pi-for-use-with-Sirius) on flashing the code to a Raspberry Pi.
+
+---
+
+You'll need Python 3 installed. I suggest creating a virtual environment to keep dependencies isolated:
 
 ```bash
 git clone git@github.com:javl/little-printer-zigbee-bridge.git
