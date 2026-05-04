@@ -194,7 +194,7 @@ async def _do_print(bridge: LittlePrinterBridge, eui64_hex: str, target: dict, c
         return
 
     print_id = cfg_module.next_print_id(cfg)
-    log.info("Preparing print job (id=%d, no_face=%s)...", print_id, bool(face_path_directory))
+    log.info("Preparing print job (id=%d)...", print_id)
 
     try:
         blocks = prepare_print_job(

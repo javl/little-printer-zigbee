@@ -169,6 +169,8 @@ Use `--face PATH` to update the personality and status images, where `PATH` is a
 - no_bridge.png
 - no_internet.png
 
+These images can have any height you want, but if you want to match the original files `personality.png` is 328 x 492 pixels, and the other three files are 328 x 200 pixels.
+
 ---
 
 ## config.json
