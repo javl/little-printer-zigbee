@@ -125,8 +125,16 @@ async def run(args):
         await bridge.preinstall_known_keys(cfg["devices"])
 
         print_target: dict | None = None
-        if args.image or args.text:
-            print_target = {"image": args.image, "text": args.text, "face": args.face, "no_face": args.no_face, "max_height": args.max_height, "dither": args.no_dither}
+        if args.image or args.text or args.personality:
+            print_target = {
+                "image": args.image,
+                "text": args.text,
+                "personality": args.personality,
+                "faces_dir": args.faces_dir,
+                "no_face": args.no_face,
+                "max_height": args.max_height,
+                "dither": args.no_dither
+            }
 
         # If we already know a printer and have its short address mapped, skip join wait.
         # Otherwise, wait for it to join (or rejoin).
@@ -165,13 +173,14 @@ async def run(args):
 
 
 async def _do_print(bridge: LittlePrinterBridge, eui64_hex: str, target: dict, cfg: dict):
-    face_path = target.get("face")
+    personality = target.get("personality", False)
 
-    if face_path:
+    if personality:
+        face_path_directory = target.get("faces_dir") or "faces"
         print_id = cfg_module.next_print_id(cfg)
-        log.info("Sending personality (face: %s, id=%d)...", face_path, print_id)
+        log.info("Sending personality (face: %s, id=%d)...", face_path_directory, print_id)
         try:
-            blocks = prepare_personality_job(face_path, print_id)
+            blocks = prepare_personality_job(face_path_directory, print_id)
         except Exception as exc:
             log.error("Failed to prepare personality: %s", exc)
             return
@@ -181,15 +190,18 @@ async def _do_print(bridge: LittlePrinterBridge, eui64_hex: str, target: dict, c
             log.error("Personality send failed: %s", exc)
             return
 
+    if not target.get("image") and not target.get("text"):
+        return
+
     print_id = cfg_module.next_print_id(cfg)
-    log.info("Preparing print job (id=%d, no_face=%s)...", print_id, bool(face_path))
+    log.info("Preparing print job (id=%d, no_face=%s)...", print_id, bool(face_path_directory))
 
     try:
         blocks = prepare_print_job(
             image_path=target.get("image"),
             text=target.get("text"),
             print_id=print_id,
-            no_face=bool(face_path) or bool(target.get("no_face")),
+            no_face=bool(target.get("no_face")),
             max_height=target.get("max_height"),
             dither=target.get("dither", False),
         )
@@ -285,7 +297,8 @@ def main():
     parser = argparse.ArgumentParser(description="Little Printer bridge")
     parser.add_argument("--image", metavar="PATH", help="Image file to print")
     parser.add_argument("--text", metavar="TEXT", help="Text to print")
-    parser.add_argument("--face", metavar="PATH", help="Face image for set_personality (optional)")
+    parser.add_argument("--faces_dir", metavar="PATH", help="Directory containing face images")
+    parser.add_argument("--personality", action="store_true", help="Update the personality face")
     parser.add_argument("--no-face", action="store_false", help="Do not show the face after printing")
     parser.add_argument("--max-height", type=int, metavar="PX", help="Cap image height (pixels) before encoding")
     parser.add_argument("--no-dither", action="store_false", help="Disable Floyd-Steinberg dithering before encoding")

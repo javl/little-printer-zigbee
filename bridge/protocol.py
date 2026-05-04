@@ -1,6 +1,7 @@
 import struct
 
 from . import image_encoding
+from os import path
 
 LITTLE_PRINTER_DEVICE_TYPE         = 0x01
 CMD_SET_DELIVERY_AND_PRINT         = 0x0001  # delivery + print, shows face
@@ -93,7 +94,7 @@ def prepare_print_job_from_pil(
     return split_into_blocks(command)
 
 
-def prepare_personality_job(face_image_path: str, print_id: int) -> list[bytes]:
+def prepare_personality_job(face_images_path: str, print_id: int) -> list[bytes]:
     """Build a set_personality command (0x0102) with four image slots.
 
     Slot 1: face (user-provided image)
@@ -103,13 +104,15 @@ def prepare_personality_job(face_image_path: str, print_id: int) -> list[bytes]:
 
     # Note: this error is raised to prevent this function from being
     # accidentally used: see README.md before removing!
-    raise NotImplementedError("Personality setup disabled to prevent possibly overwriting the original faces: see README.md")
 
-    face_im = image_encoding.load_image(face_image_path)
-    blank_im = image_encoding.create_blank_image()
+    personality_im = image_encoding.load_image(path.join(face_images_path, "personality.png"))
+
+    nothing_to_print_im = image_encoding.load_image(path.join(face_images_path, "nothing_to_print.png"))
+    no_bridge_im = image_encoding.load_image(path.join(face_images_path, "no_bridge.png"))
+    no_internet_im = image_encoding.load_image(path.join(face_images_path, "no_internet.png"))
 
     payload = b""
-    for im in [face_im, blank_im, blank_im, blank_im]:
+    for im in [personality_im, nothing_to_print_im, no_bridge_im, no_internet_im]:
         pixel_count, rle_bytes = image_encoding.image_to_rle(im)
         payload += build_print_payload(pixel_count, rle_bytes)
 

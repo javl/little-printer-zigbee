@@ -19,8 +19,9 @@ Did you find this tool useful? Feel free to support my open source tools - espec
 
 ---
 
-- [Little Printer Bridge](#little-printer-bridge)
+- [Little Printer Zigbee Bridge](#little-printer-zigbee-bridge)
   - [License](#license)
+  - [Support](#support)
   - [Installation](#installation)
   - [Get claim code](#get-claim-code)
   - [Option 1. Connect to Sirius](#option-1-connect-to-sirius)
@@ -117,7 +118,8 @@ Run the bridge directly from the commandline with various arguments.
 |---|---|---|
 | `--image PATH` | - | Image file to print |
 | `--text TEXT` | - | Text to print (mutually exclusive with `--image`) |
-| `--face PATH` | - | Face image to upload via `set_personality` before printing - **see [Faces / personality](#faces--personality)** |
+| `--personality` | - | Updates faces with images from `faces` directory |
+| `--face_dir PATH` | - | Directory to get faces from. Defaults to `faces` |
 | `--no-face` | face on | Skip printing the face after the message |
 | `--max-height PX` | - | Cap image height in pixels before encoding |
 | `--no-dither` | dithering on | Disable Floyd-Steinberg dithering |
@@ -158,23 +160,14 @@ python3 -m bridge.main --text "test" --once
 
 ## Faces / personality
 
-Originally the Little Printer had a "personality": its face would change over time (hair would grow, get a haircut, etc.). The personality (the face printed at the end of each delivery) plus three status images (`nothing to print`, `can't see bridge`, `can't see internet`) are stored in the printer's flash memory.
+Originally the Little Printer had a "personality": its face would change over time (hair would grow, it would get glasses, etc.). You can update the personality (the face printed at the end of each delivery) plus three status images (`nothing to print`, `can't see bridge`, `can't see internet`). These images will be used until you send new ones, or simply power off the printer.
 
----
+Use `--face PATH` to update the personality and status images, where `PATH` is a directory containing four images:
 
-> **Warning: DANGER!**
->
-> Using `set_personality` will overwrite the printer's flash memory, replacing whatever faces are currently stored. The script sends the personality image you provide, and sends three fully white images for the status faces (as I wasn't able to find the original image files for those faces).
->
-> To prevent accidents, custom faces are currently disabled. To enable, remove the `raise NotImplementedError` in the `prepare_personality_job()` method in `protocol.py`.
->
-> If you don't mind the risk of overwriting the original faces, give it a try and please report back!
-
----
-
-Use `--face PATH` to update the personality and status images, where `PATH` is the image to use as the face. This sends the  `set_personality` command which uploads image and blank white placeholders for the three status slots.
-
-To use real images for the status slots, edit `prepare_personality_job` in `protocol.py`. The four `im` values in the list correspond to: face, nothing-to-print, can't-see-bridge, can't-see-internet.
+- personality.png
+- nothing_to_print.png
+- no_bridge.png
+- no_internet.png
 
 ---
 

@@ -40,7 +40,6 @@ EVENT_HEADER_SIZE  = 10  # 2B code + 4B cmd_id + 4B payload_len
 BLOCK_RETRY_ATTEMPTS = 4
 BLOCK_RETRY_DELAY    = 1.0
 BLOCK_SEND_TIMEOUT   = 5.0   # wait for MAC delivery per fragment
-PRINT_DONE_TIMEOUT   = 60.0  # wait for EVENT_DID_PRINT after last block
 MAX_APS_PAYLOAD      = 80    # 82 (ZigBee Pro with security) - 2 (APS fragmentation overhead)
 
 # ── EmberStatus integer values (matches bellows/zigpy) ───────────────────────
@@ -404,12 +403,7 @@ class LittlePrinterBridge:
 
             block_id = _next_block_id(block_id)
 
-        log.info("All blocks sent, waiting for print confirmation...")
-        try:
-            await asyncio.wait_for(self._print_done.wait(), timeout=PRINT_DONE_TIMEOUT)
-            log.info("Print confirmed by printer")
-        except asyncio.TimeoutError:
-            log.warning("No print confirmation received within %ds", PRINT_DONE_TIMEOUT)
+        log.info("All blocks sent.")
 
     async def _send_block(self, short_addr: int, block_id: int, data: bytes, use_v14: bool) -> bool:
         """Send one block (fragments + ZCL ACK wait). Used for sequential retries."""
