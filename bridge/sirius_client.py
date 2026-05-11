@@ -7,6 +7,7 @@ import time
 
 import websockets
 
+from . import config as cfg_module
 from .protocol import split_into_blocks
 
 log = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ def _sirius_to_eui64(sirius_device_address: str) -> str:
 class SiriusClient:
     def __init__(self, bridge, cfg: dict, server_url: str = DEFAULT_SIRIUS_SERVER_URL):
         self._bridge = bridge
+        self._cfg = cfg
         self._bridge_address = cfg.get("extended_pan_id", "0000000000000000")
         self._server_url = server_url
         self._ws = None
@@ -159,6 +161,9 @@ class SiriusClient:
             eui64_le = bytes.fromhex(eui64_hex)
             log.info("← AddDeviceEncryptionKey for %s", sirius_addr)
             await self._bridge.install_link_key(eui64_le, key)
+            self._cfg["devices"][eui64_hex] = {"link_key": key.hex()}
+            cfg_module.save(self._cfg)
+            log.info("Saved device %s to config", eui64_hex)
             await self._send_bridge_command_response(command_id)
         else:
             log.info("Unknown BridgeCommand name: %s", name)

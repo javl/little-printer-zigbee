@@ -140,12 +140,11 @@ class LittlePrinterBridge:
             t.EzspConfigId.CONFIG_STACK_PROFILE:                   2,  # ZigBee Pro: required for printer to find us
             t.EzspConfigId.CONFIG_ADDRESS_TABLE_SIZE:              8,
             t.EzspConfigId.CONFIG_TRUST_CENTER_ADDRESS_CACHE_SIZE: 2,
-            t.EzspConfigId.CONFIG_KEY_TABLE_SIZE:                  16,
+            t.EzspConfigId.CONFIG_KEY_TABLE_SIZE:                  12,
             t.EzspConfigId.CONFIG_SOURCE_ROUTE_TABLE_SIZE:         0,
             t.EzspConfigId.CONFIG_FRAGMENT_WINDOW_SIZE:            8,
             t.EzspConfigId.CONFIG_FRAGMENT_DELAY_MS:               0,
             t.EzspConfigId.CONFIG_END_DEVICE_POLL_TIMEOUT:         1,
-            t.EzspConfigId.CONFIG_END_DEVICE_POLL_TIMEOUT_SHIFT:   6,
             t.EzspConfigId.CONFIG_TX_POWER_MODE:                   1,  # EMBER_TX_POWER_MODE_BOOST
             t.EzspConfigId.CONFIG_DISABLE_RELAY:                   1,
             t.EzspConfigId.CONFIG_MAX_HOPS:                        30,
@@ -251,7 +250,7 @@ class LittlePrinterBridge:
         )
         if int(status) != EMBER_SUCCESS:
             # ERROR_INVALID_CALL means the endpoint is already registered (NCP retains state across restarts)
-            log.info("addEndpoint: %s", status)
+            log.debug("addEndpoint: %s", status)
 
     async def _set_tx_power(self):
         (status,) = await self._ezsp.setRadioPower(8) # pyright: ignore[reportOptionalMemberAccess]

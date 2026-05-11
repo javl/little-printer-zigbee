@@ -72,7 +72,7 @@ async def handle_join(bridge: LittlePrinterBridge, event, cfg: dict):
             await bridge.install_link_key(event.eui64_le, bytes.fromhex(known["link_key"]))
             return
         print(f"\nNew printer detected (EUI64: {eui64_hex})")
-        print("The printer should have printed a claim code.")
+        print("Press the button on the printer to have it print its claim code")
         print("Enter it below (dashes optional, e.g. XXXX-XXXX-XXXX-XXXX):\n")
 
     while True:
@@ -109,7 +109,6 @@ async def handle_join(bridge: LittlePrinterBridge, event, cfg: dict):
     cfg_module.save(cfg)
     log.info("Printer %s paired and saved to config", eui64_hex)
     print(f"\nPaired! Config saved.\n")
-
 
 async def run(args):
     cfg = cfg_module.load()
