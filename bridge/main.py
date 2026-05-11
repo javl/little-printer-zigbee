@@ -21,7 +21,8 @@ from . import config as cfg_module
 from .claiming import link_key_from_claim_code, hardware_xor_from_eui64, InvalidClaimCode
 from .protocol import prepare_print_job, prepare_personality_job
 from .server import make_app, run_server
-from .sirius_client import SiriusClient, DEFAULT_SERVER_URL
+from .sirius_client import SiriusClient, DEFAULT_SIRIUS_SERVER_URL
+from .lp_client import LPClient, DEFAULT_SERVER_URL
 from .zigbee import LittlePrinterBridge
 
 logging.basicConfig(
@@ -239,7 +240,6 @@ async def serve_mode(args):
     finally:
         await bridge.stop()
 
-
 async def run_sirius(args):
     cfg = cfg_module.load()
     if args.port:
@@ -252,7 +252,7 @@ async def run_sirius(args):
         await bridge.start()
         await bridge.preinstall_known_keys(cfg["devices"])
 
-        server_url = args.sirius_server or DEFAULT_SERVER_URL
+        server_url = args.sirius_server or DEFAULT_SIRIUS_SERVER_URL
         sirius = SiriusClient(bridge, cfg, server_url)
         await sirius.connect()
 
@@ -268,6 +268,59 @@ async def run_sirius(args):
         log.info("Sirius mode running. Waiting for printer and Nord server commands.")
         try:
             await asyncio.gather(join_loop(), sirius.receive_forever())
+        except asyncio.CancelledError:
+            pass
+    finally:
+        await bridge.stop()
+
+async def run_lp_server(args):
+    cfg = cfg_module.load()
+    if args.port:
+        cfg["ezsp_port"] = args.port
+    if args.baud:
+        cfg["ezsp_baud"] = args.baud
+
+    bridge = LittlePrinterBridge(cfg)
+    try:
+        await bridge.start()
+        await bridge.preinstall_known_keys(cfg["devices"])
+
+        server_url = args.sirius_server or DEFAULT_SERVER_URL
+        lp_server = LPClient(bridge, cfg, server_url)
+
+        join_queue: asyncio.Queue = asyncio.Queue()
+
+        async def join_loop():
+            while True:
+                event = await bridge.wait_for_join()
+                await join_queue.put(event)
+
+        async def drain_join_queue():
+            while True:
+                event = await join_queue.get()
+                device_address = event.eui64_le[::-1].hex()  # BE for server
+                if event.policy_decision == DENY_JOIN:
+                    await lp_server.send_encryption_key_required(device_address)
+                else:
+                    await lp_server.send_device_connect(device_address)
+
+        async def server_loop():
+            delay = 1.0
+            while True:
+                try:
+                    await lp_server.connect()
+                    delay = 1.0
+                    await asyncio.gather(drain_join_queue(), lp_server.receive_forever())
+                except asyncio.CancelledError:
+                    return
+                except Exception as exc:
+                    log.warning("Server connection lost: %s — reconnecting in %.0fs", exc, delay)
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 2, 60)
+
+        log.info("lp_server mode running. Waiting for printer and server commands.")
+        try:
+            await asyncio.gather(join_loop(), server_loop())
         except asyncio.CancelledError:
             pass
     finally:
@@ -297,9 +350,10 @@ def main():
     parser.add_argument("--http-port", type=int, default=8080, metavar="PORT",
                         help="HTTP port (default: 8080)")
     parser.add_argument("--to-image", action="store_true", help="Write the result to print.jpg instead of sending to printer, useful for debugging without a Zigbee module or printer")
+    parser.add_argument("--lp-server", action="store_true", help="Connect to (new) server as client")
     parser.add_argument("--sirius", action="store_true", help="Connect to Nord server (Sirius) as a Berg bridge client")
     parser.add_argument("--sirius-server", metavar="URL", default=None,
-                        help=f"Nord server WebSocket URL (default: {DEFAULT_SERVER_URL})")
+                        help=f"Nord server WebSocket URL (default: {DEFAULT_SIRIUS_SERVER_URL})")
     parser.add_argument("--debug", action="store_true", help="Enable DEBUG logging")
     args = parser.parse_args()
 
@@ -315,10 +369,13 @@ def main():
         return
 
     try:
-        if args.sirius:
-            asyncio.run(run_sirius(args))
-        elif args.serve:
+        if args.serve:
             asyncio.run(serve_mode(args))
+        elif args.sirius:  # legacy sirius mode
+            asyncio.run(run_sirius(args))
+        elif args.lp_server:
+            asyncio.run(run_lp_server(args))
+
         else:
             asyncio.run(run(args))
     except KeyboardInterrupt:
