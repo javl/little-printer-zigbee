@@ -1,10 +1,14 @@
 """
 Inspect EZSP dongle at /dev/ttyUSB0 (or --port override).
 Reads firmware version, EUI64, network state, network parameters,
-config values, and policies — all read-only, no changes made.
+config values, and policies.
+
+By default read-only; use --configure to apply the same config as
+zigbee.py _configure_stack() before reading back, so all expected
+values show ✓.
 
 Usage:
-    python -m bridge.inspect_dongle [--port /dev/ttyUSB0] [--baud 115200]
+    python -m bridge.inspect_dongle [--port /dev/ttyUSB0] [--baud 115200] [--configure]
 """
 
 import argparse
@@ -26,7 +30,6 @@ RELEVANT_CONFIGS = [
     t.EzspConfigId.CONFIG_FRAGMENT_WINDOW_SIZE,
     t.EzspConfigId.CONFIG_FRAGMENT_DELAY_MS,
     t.EzspConfigId.CONFIG_END_DEVICE_POLL_TIMEOUT,
-    t.EzspConfigId.CONFIG_END_DEVICE_POLL_TIMEOUT_SHIFT,
     t.EzspConfigId.CONFIG_TX_POWER_MODE,
     t.EzspConfigId.CONFIG_DISABLE_RELAY,
     t.EzspConfigId.CONFIG_MAX_HOPS,
@@ -50,13 +53,36 @@ RELEVANT_POLICIES = [
 ]
 
 RELEVANT_VALUES = [
-    t.EzspValueId.VALUE_MAXIMUM_INCOMING_TRANSFER_SIZE,
-    t.EzspValueId.VALUE_MAXIMUM_OUTGOING_TRANSFER_SIZE,
+    # VALUE_MAXIMUM_INCOMING/OUTGOING_TRANSFER_SIZE: write-only on EZSP v14, read returns INVALID_PARAMETER
     t.EzspValueId.VALUE_STACK_TOKEN_WRITING,
     t.EzspValueId.VALUE_STACK_IS_PERFORMING_REJOIN,
     t.EzspValueId.VALUE_FREE_BUFFERS,
     t.EzspValueId.VALUE_EXTENDED_SECURITY_BITMASK,
     t.EzspValueId.VALUE_VERSION_INFO,
+]
+
+# Mirror of zigbee.py _configure_stack() / _set_trust_center_policy()
+BRIDGE_CONFIGS = {
+    t.EzspConfigId.CONFIG_SECURITY_LEVEL:                  5,
+    t.EzspConfigId.CONFIG_STACK_PROFILE:                   2,
+    t.EzspConfigId.CONFIG_ADDRESS_TABLE_SIZE:              8,
+    t.EzspConfigId.CONFIG_TRUST_CENTER_ADDRESS_CACHE_SIZE: 2,
+    t.EzspConfigId.CONFIG_KEY_TABLE_SIZE:                  12,
+    t.EzspConfigId.CONFIG_SOURCE_ROUTE_TABLE_SIZE:         0,
+    t.EzspConfigId.CONFIG_FRAGMENT_WINDOW_SIZE:            8,
+    t.EzspConfigId.CONFIG_FRAGMENT_DELAY_MS:               0,
+    t.EzspConfigId.CONFIG_END_DEVICE_POLL_TIMEOUT:         1,
+    t.EzspConfigId.CONFIG_TX_POWER_MODE:                   1,
+    t.EzspConfigId.CONFIG_DISABLE_RELAY:                   1,
+    t.EzspConfigId.CONFIG_MAX_HOPS:                        30,
+}
+
+BRIDGE_POLICIES = [
+    (t.EzspPolicyId.TRUST_CENTER_POLICY,            t.EzspDecisionId.ALLOW_PRECONFIGURED_KEY_JOINS),
+    (t.EzspPolicyId.TC_KEY_REQUEST_POLICY,          t.EzspDecisionId.DENY_TC_KEY_REQUESTS),
+    (t.EzspPolicyId.APP_KEY_REQUEST_POLICY,         t.EzspDecisionId.DENY_APP_KEY_REQUESTS),
+    (t.EzspPolicyId.BINDING_MODIFICATION_POLICY,    t.EzspDecisionId.DISALLOW_BINDING_MODIFICATION),
+    (t.EzspPolicyId.MESSAGE_CONTENTS_IN_CALLBACK_POLICY, t.EzspDecisionId.MESSAGE_TAG_ONLY_IN_CALLBACK),
 ]
 
 
@@ -69,6 +95,35 @@ NETWORK_STATE_NAMES = {
 }
 
 
+async def apply_bridge_config(ezsp: EZSP):
+    sep("APPLYING BRIDGE CONFIG")
+    for cid, val in BRIDGE_CONFIGS.items():
+        try:
+            (status,) = await ezsp.setConfigurationValue(cid, val)
+            ok = "✓" if int(status) == 0 else f"status={status}"
+            print(f"  set {cid.name:<48} = {val}  {ok}")
+        except Exception as exc:
+            print(f"  set {cid.name:<48} = {val}  (error: {exc})")
+
+    size_bytes = bytes([1024 & 0xFF, (1024 >> 8) & 0xFF])
+    for vid in (t.EzspValueId.VALUE_MAXIMUM_INCOMING_TRANSFER_SIZE,
+                t.EzspValueId.VALUE_MAXIMUM_OUTGOING_TRANSFER_SIZE):
+        try:
+            (status,) = await ezsp.setValue(vid, size_bytes)
+            ok = "✓" if int(status) == 0 else f"status={status}"
+            print(f"  set {vid.name:<48} = 1024  {ok}")
+        except Exception as exc:
+            print(f"  set {vid.name:<48} = 1024  (error: {exc})")
+
+    for pid, did in BRIDGE_POLICIES:
+        try:
+            (status,) = await ezsp.setPolicy(pid, did)
+            ok = "✓" if int(status) == 0 else f"status={status}"
+            print(f"  set {pid.name:<48} = {did.name}  {ok}")
+        except Exception as exc:
+            print(f"  set {pid.name:<48}  (error: {exc})")
+
+
 def sep(title=""):
     width = 60
     if title:
@@ -78,8 +133,12 @@ def sep(title=""):
         print("─" * width)
 
 
-async def inspect(port: str, baud: int):
+async def inspect(port: str, baud: int, configure: bool = False):
     print(f"Connecting to {port} at {baud} baud...")
+    if configure:
+        print("[configure mode: applying bridge config before read]")
+    else:
+        print("[read-only mode: values reflect NCP defaults, not bridge-configured state]")
     ezsp = EZSP({"path": port, "baudrate": baud, "flow_control": None})
     await ezsp.connect()
 
@@ -152,6 +211,9 @@ async def inspect(port: str, baud: int):
                 print(f"  [stored] TX power        : {int(params.radioTxPower)} dBm")
         except Exception:
             pass
+
+    if configure:
+        await apply_bridge_config(ezsp)
 
     # ── Config values ─────────────────────────────────────────────────────────
     sep("CONFIG VALUES")
@@ -246,10 +308,12 @@ def main():
     parser = argparse.ArgumentParser(description="Inspect EZSP Zigbee dongle.")
     parser.add_argument("--port", default="/dev/ttyUSB0")
     parser.add_argument("--baud", type=int, default=115200)
+    parser.add_argument("--configure", action="store_true",
+                        help="Apply bridge config before reading (same as zigbee.py _configure_stack)")
     args = parser.parse_args()
 
     try:
-        asyncio.run(inspect(args.port, args.baud))
+        asyncio.run(inspect(args.port, args.baud, configure=args.configure))
     except KeyboardInterrupt:
         pass
     except Exception as exc:
