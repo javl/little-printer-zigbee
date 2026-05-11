@@ -140,11 +140,12 @@ class LittlePrinterBridge:
             t.EzspConfigId.CONFIG_STACK_PROFILE:                   2,  # ZigBee Pro: required for printer to find us
             t.EzspConfigId.CONFIG_ADDRESS_TABLE_SIZE:              8,
             t.EzspConfigId.CONFIG_TRUST_CENTER_ADDRESS_CACHE_SIZE: 2,
-            t.EzspConfigId.CONFIG_KEY_TABLE_SIZE:                  12,
+            t.EzspConfigId.CONFIG_KEY_TABLE_SIZE:                  12,  # 16
             t.EzspConfigId.CONFIG_SOURCE_ROUTE_TABLE_SIZE:         0,
             t.EzspConfigId.CONFIG_FRAGMENT_WINDOW_SIZE:            8,
             t.EzspConfigId.CONFIG_FRAGMENT_DELAY_MS:               0,
             t.EzspConfigId.CONFIG_END_DEVICE_POLL_TIMEOUT:         1,
+            # t.EzspConfigId.CONFIG_END_DEVICE_POLL_TIMEOUT_SHIFT:   6,
             t.EzspConfigId.CONFIG_TX_POWER_MODE:                   1,  # EMBER_TX_POWER_MODE_BOOST
             t.EzspConfigId.CONFIG_DISABLE_RELAY:                   1,
             t.EzspConfigId.CONFIG_MAX_HOPS:                        30,
@@ -401,6 +402,13 @@ class LittlePrinterBridge:
                 raise RuntimeError(f"Block {block_id} rejected by printer: 0x{self._zcl_response_code:02x}")
 
             block_id = _next_block_id(block_id)
+
+        # log.info("All blocks sent, waiting for print confirmation...")
+        # try:
+        #     await asyncio.wait_for(self._print_done.wait(), timeout=PRINT_DONE_TIMEOUT)
+        #     log.info("Print confirmed by printer")
+        # except asyncio.TimeoutError:
+        #     log.warning("No print confirmation received within %ds", PRINT_DONE_TIMEOUT)
 
         log.info("All blocks sent.")
 
