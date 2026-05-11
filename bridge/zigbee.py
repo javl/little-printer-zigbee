@@ -118,7 +118,7 @@ class LittlePrinterBridge:
             try:
                 await self._ezsp.disconnect()
             except Exception as exc:
-                log.debug("EZSP disconnect: %s", exc)
+                log.info("EZSP disconnect: %s", exc)
             self._ezsp = None
 
     async def preinstall_known_keys(self, devices: dict):
@@ -154,7 +154,7 @@ class LittlePrinterBridge:
         for cid, val in configs.items():
             (status,) = await self._ezsp.setConfigurationValue(cid, val) # pyright: ignore[reportOptionalMemberAccess]
             if int(status) != EMBER_SUCCESS:
-                log.debug("setConfigurationValue %s=%s: %s", cid, val, status)
+                log.info("setConfigurationValue %s=%s: %s", cid, val, status)
 
         # Tell NCP the max reassembly buffer size (1024 matches original firmware)
         size_bytes = bytes([1024 & 0xFF, (1024 >> 8) & 0xFF])
@@ -163,9 +163,9 @@ class LittlePrinterBridge:
             try:
                 (status,) = await self._ezsp.setValue(vid, size_bytes) # pyright: ignore[reportOptionalMemberAccess]
                 if int(status) != EMBER_SUCCESS:
-                    log.debug("setValue %s: %s", vid, status)
+                    log.info("setValue %s: %s", vid, status)
             except Exception as exc:
-                log.debug("setValue %s: %s", vid, exc)
+                log.info("setValue %s: %s", vid, exc)
 
     async def _set_trust_center_policy(self):
         policies = [
@@ -195,7 +195,7 @@ class LittlePrinterBridge:
             else:
                 (status,) = await self._ezsp.networkInit() # pyright: ignore[reportOptionalMemberAccess]
         except Exception as exc:
-            log.debug("networkInit error: %s", exc)
+            log.info("networkInit error: %s", exc)
             status = None
 
         if status is not None and int(status) == EMBER_SUCCESS:
@@ -252,7 +252,7 @@ class LittlePrinterBridge:
         )
         if int(status) != EMBER_SUCCESS:
             # ERROR_INVALID_CALL means the endpoint is already registered (NCP retains state across restarts)
-            log.debug("addEndpoint: %s", status)
+            log.info("addEndpoint: %s", status)
 
     async def _set_tx_power(self):
         (status,) = await self._ezsp.setRadioPower(8) # pyright: ignore[reportOptionalMemberAccess]
@@ -496,7 +496,7 @@ class LittlePrinterBridge:
                 # All fragments share the same APS sequence (per spec). Set it now so
                 # messageSentHandler callbacks that fire during subsequent sends are counted.
                 self._expected_aps_seq = aps_sequence
-            log.debug("Fragment %d/%d queued (tag=%d aps_seq=%d)", frag_idx + 1, total_frags, tag, aps_sequence)
+            log.info("Fragment %d/%d queued (tag=%d aps_seq=%d)", frag_idx + 1, total_frags, tag, aps_sequence)
 
         # Wait for ALL messageSentHandler callbacks (original: _pending_sent.wait(5))
         try:
@@ -541,7 +541,7 @@ class LittlePrinterBridge:
             elif frame_name == "messageSentHandler":
                 self._handle_message_sent(args)
             else:
-                log.debug("EZSP frame: %s %s", frame_name, args)
+                log.info("EZSP frame: %s %s", frame_name, args)
         except Exception:
             log.exception("Error in EZSP callback %s", frame_name)
 
@@ -615,13 +615,13 @@ class LittlePrinterBridge:
         if event_code == self._COMMAND_RESPONSE_CODE:
             # Printer ACK for the last block. Byte 10 of payload = return code.
             return_code = payload[10] if len(payload) > 10 else 0xFF
-            log.debug("Block ACK from 0x%04x: return_code=0x%02x", sender, return_code)
+            log.info("Block ACK from 0x%04x: return_code=0x%02x", sender, return_code)
             self._zcl_response_code = return_code
             self._zcl_response_event.set()
             return
 
         if event_code == EVENT_HEARTBEAT:
-            log.debug("Heartbeat from 0x%04x", sender)
+            log.info("Heartbeat from 0x%04x", sender)
 
         elif event_code == EVENT_DID_POWER_ON:
             log.info("Printer 0x%04x powered on", sender)
@@ -631,7 +631,7 @@ class LittlePrinterBridge:
             self._print_done.set()
 
         else:
-            log.debug("Unknown event 0x%04x from 0x%04x", event_code, sender)
+            log.info("Unknown event 0x%04x from 0x%04x", event_code, sender)
 
         if self.on_printer_event:
             self.on_printer_event(eui64_hex, event_code, payload)
@@ -654,7 +654,7 @@ class LittlePrinterBridge:
         except (IndexError, TypeError, KeyError, AttributeError):
             return
 
-        log.debug("messageSent: aps_seq=%d status=%d (expecting seq=%d, %d remaining)",
+        log.info("messageSent: aps_seq=%d status=%d (expecting seq=%d, %d remaining)",
                   aps_seq, status, self._expected_aps_seq, self._pending_frag_count)
 
         if self._pending_frag_count > 0 and aps_seq == self._expected_aps_seq:
