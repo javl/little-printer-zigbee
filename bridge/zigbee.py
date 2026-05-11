@@ -46,6 +46,9 @@ MAX_APS_PAYLOAD      = 80    # 82 (ZigBee Pro with security) - 2 (APS fragmentat
 EMBER_SUCCESS    = 0x00
 EMBER_NETWORK_UP = 0x90
 
+# Trust Center link key pre-programmed into Little Printer firmware
+PRINTER_TC_LINK_KEY = bytes.fromhex("d0d1d2d3d4d5d6d7d8d9dadbdcdddedf")
+
 
 class PrinterJoinEvent:
     def __init__(self, node_id: int, eui64_le: bytes, policy_decision: int):
@@ -209,8 +212,9 @@ class LittlePrinterBridge:
         cfg = self._cfg
         network_key = bytes.fromhex(cfg["network_key"])
         security = t.EmberInitialSecurityState(
-            bitmask=t.EmberInitialSecurityBitmask.HAVE_NETWORK_KEY,
-            preconfiguredKey=t.KeyData([0] * 16),
+            bitmask=(t.EmberInitialSecurityBitmask.HAVE_NETWORK_KEY |
+                     t.EmberInitialSecurityBitmask.HAVE_PRECONFIGURED_KEY),
+            preconfiguredKey=t.KeyData(list(PRINTER_TC_LINK_KEY)),
             networkKey=t.KeyData(list(network_key)),
             networkKeySequenceNumber=0,
             preconfiguredTrustCenterEui64=t.EUI64([0] * 8),
