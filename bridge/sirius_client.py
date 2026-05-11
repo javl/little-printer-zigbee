@@ -11,7 +11,7 @@ from .protocol import split_into_blocks
 
 log = logging.getLogger(__name__)
 
-DEFAULT_SERVER_URL = "wss://littleprinter.nordprojects.co/api/v1/connection"
+DEFAULT_SIRIUS_SERVER_URL = "wss://littleprinter.nordprojects.co/api/v1/connection"
 
 # Device event codes (mirror sirius/coding/decoders.py)
 _EVENT_HEARTBEAT = 0x0001
@@ -29,7 +29,7 @@ def _sirius_to_eui64(sirius_device_address: str) -> str:
 
 
 class SiriusClient:
-    def __init__(self, bridge, cfg: dict, server_url: str = DEFAULT_SERVER_URL):
+    def __init__(self, bridge, cfg: dict, server_url: str = DEFAULT_SIRIUS_SERVER_URL):
         self._bridge = bridge
         self._bridge_address = cfg.get("extended_pan_id", "0000000000000000")
         self._server_url = server_url
@@ -145,7 +145,7 @@ class SiriusClient:
                     self._handle_device_command(data, command_id)
                 )
             else:
-                log.debug("Unhandled server message type: %s", msg_type)
+                log.info("Unhandled server message type: %s", msg_type)
 
     async def _handle_bridge_command(self, data: dict, command_id):
         payload = data.get("json_payload", {})
@@ -161,7 +161,7 @@ class SiriusClient:
             await self._bridge.install_link_key(eui64_le, key)
             await self._send_bridge_command_response(command_id)
         else:
-            log.debug("Unknown BridgeCommand name: %s", name)
+            log.info("Unknown BridgeCommand name: %s", name)
 
     async def _handle_device_command(self, data: dict, command_id):
         sirius_addr = data["device_address"]

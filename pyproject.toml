@@ -1,0 +1,6 @@
+[project]
+name = "Little Printer Zigbee Brige"
+version = "1.1.0"
+description = "An updated Zigbee bridge for the Little Printer, for use with Raspberry Pi and a Zigbee adapter."
+readme = "README.md"
+requires-python = ">=3.8"

@@ -17,7 +17,7 @@ def _defaults():
         "ezsp_baud": 115200,
         "channel": DEFAULT_CHANNEL,
         "extended_pan_id": (BERG_EPAN_PREFIX + secrets.token_bytes(4)).hex(),
-        "network_key": "", 
+        "network_key": secrets.token_hex(16),
         "print_id": 1,
         "devices": {},
     }
@@ -27,9 +27,11 @@ def load(path=CONFIG_PATH):
     if os.path.exists(path):
         with open(path) as f:
             cfg = json.load(f)
-        for k, v in _defaults().items():
-            if k not in cfg:
+        defaults = _defaults()
+        for k, v in defaults.items():
+            if k not in cfg or cfg[k] == "":
                 cfg[k] = v
+        save(cfg, path)
         return cfg
     cfg = _defaults()
     save(cfg, path)
