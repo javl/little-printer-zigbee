@@ -8,6 +8,8 @@ You can control the Little Printer from your computer, or simply use a Raspberry
 
 Tested on Linux and Windows using a Sonoff ZBDongle-E. Feel free to share issues or comments if you've tested it working on other systems.
 
+## note
+I've also been working on a different bridge alternative (ESP32 based) which uses even cheaper hardware and is truely plug and play. So unless you want to play around with this code yourself you might want to wait for a little bit longer to see if this alternative will suit you better!
 
 ## License
 In the spirit of open source this project is shared under a GNU GPLv3 license. This means you can use it pretty much in any way you like (including commercially) as long as you give proper attribution and share any changes you make. If you do make any changes that might benefit others, please share them here as a pull request as well, to prevent too many fractured versions of this code.
