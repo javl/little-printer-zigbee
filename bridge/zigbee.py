@@ -10,6 +10,7 @@ differently, check bellows/types/named_array.py and bellows/types/struct.py.
 
 import asyncio
 import logging
+import random
 import struct
 from typing import Callable, Optional
 
@@ -212,9 +213,8 @@ class LittlePrinterBridge:
         cfg = self._cfg
         network_key = bytes.fromhex(cfg["network_key"])
         security = t.EmberInitialSecurityState(
-            bitmask=(t.EmberInitialSecurityBitmask.HAVE_NETWORK_KEY |
-                     t.EmberInitialSecurityBitmask.HAVE_PRECONFIGURED_KEY),
-            preconfiguredKey=t.KeyData(list(PRINTER_TC_LINK_KEY)),
+            bitmask=t.EmberInitialSecurityBitmask.HAVE_NETWORK_KEY,
+            preconfiguredKey=t.KeyData([0] * 16),
             networkKey=t.KeyData(list(network_key)),
             networkKeySequenceNumber=0,
             preconfiguredTrustCenterEui64=t.EUI64([0] * 8),
@@ -229,7 +229,7 @@ class LittlePrinterBridge:
         channel = cfg["channel"]
         params = t.EmberNetworkParameters(
             extendedPanId=t.ExtendedPanId(list(epan)),
-            panId=0,
+            panId=cfg.get("pan_id", random.randint(1, 0xFFFE)),
             radioTxPower=8,
             radioChannel=channel,
             joinMethod=t.EmberJoinMethod.USE_MAC_ASSOCIATION,
