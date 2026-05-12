@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import secrets
 import sys
 
@@ -16,6 +17,7 @@ def _defaults():
         "ezsp_port": default_port,
         "ezsp_baud": 115200,
         "channel": DEFAULT_CHANNEL,
+        "pan_id": random.randint(1, 0xFFFE),
         "extended_pan_id": (BERG_EPAN_PREFIX + secrets.token_bytes(4)).hex(),
         "network_key": secrets.token_hex(16),
         "print_id": 1,
