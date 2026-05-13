@@ -32,10 +32,14 @@ ZCL_CMD_ID = 0x01
 ZCL_HEADER_SIZE = 5  # frame_ctrl(1) + mfg_lo(1) + mfg_hi(1) + seq(1) + cmd(1)
 
 # ── Device event codes (little-endian 16-bit) ─────────────────────────────────
-EVENT_HEARTBEAT    = 0x0001
-EVENT_DID_PRINT    = 0x0002
-EVENT_DID_POWER_ON = 0x0003
 EVENT_HEADER_SIZE  = 10  # 2B code + 4B cmd_id + 4B payload_len
+EVENT_HEARTBEAT = 0x0001
+EVENT_DID_PRINT = 0x0002
+EVENT_DID_POWER_ON = 0x0003
+EVENT_HEARTBEAT_SIZE = 0x0004
+EVENT_DID_PRINT_SIZE = 0x0005
+EVENT_DID_POWER_ON_SIZE_LONG = 0x004A # 74
+EVENT_DID_POWER_ON_SIZE_SHORT = 0x003A # 58
 
 # ── Block transfer ────────────────────────────────────────────────────────────
 BLOCK_RETRY_ATTEMPTS = 4
@@ -46,10 +50,7 @@ MAX_APS_PAYLOAD      = 80    # 82 (ZigBee Pro with security) - 2 (APS fragmentat
 # ── EmberStatus integer values (matches bellows/zigpy) ───────────────────────
 EMBER_SUCCESS    = 0x00
 EMBER_NETWORK_UP = 0x90
-
-# Trust Center link key pre-programmed into Little Printer firmware
-PRINTER_TC_LINK_KEY = bytes.fromhex("d0d1d2d3d4d5d6d7d8d9dadbdcdddedf")
-
+EMBER_KEY_TABLE_SIZE = 16
 
 class PrinterJoinEvent:
     def __init__(self, node_id: int, eui64_le: bytes, policy_decision: int):
@@ -125,7 +126,7 @@ class LittlePrinterBridge:
             self._ezsp = None
 
     async def preinstall_known_keys(self, devices: dict):
-        """Install all link keys from config into the NCP key table on startup."""
+        """Install all link keys (if any) from config into the NCP key table on startup."""
         for eui64_hex, info in devices.items():
             if "link_key" not in info:
                 continue
@@ -144,7 +145,7 @@ class LittlePrinterBridge:
             t.EzspConfigId.CONFIG_STACK_PROFILE:                   2,  # ZigBee Pro: required for printer to find us
             t.EzspConfigId.CONFIG_ADDRESS_TABLE_SIZE:              8,
             t.EzspConfigId.CONFIG_TRUST_CENTER_ADDRESS_CACHE_SIZE: 2,
-            t.EzspConfigId.CONFIG_KEY_TABLE_SIZE:                  12,  # 16
+            t.EzspConfigId.CONFIG_KEY_TABLE_SIZE:                  EMBER_KEY_TABLE_SIZE,  # 16
             t.EzspConfigId.CONFIG_SOURCE_ROUTE_TABLE_SIZE:         0,
             t.EzspConfigId.CONFIG_FRAGMENT_WINDOW_SIZE:            8,
             t.EzspConfigId.CONFIG_FRAGMENT_DELAY_MS:               0,
@@ -172,10 +173,10 @@ class LittlePrinterBridge:
 
     async def _set_trust_center_policy(self):
         policies = [
-            (t.EzspPolicyId.TRUST_CENTER_POLICY,            t.EzspDecisionId.ALLOW_PRECONFIGURED_KEY_JOINS),
-            (t.EzspPolicyId.TC_KEY_REQUEST_POLICY,           t.EzspDecisionId.DENY_TC_KEY_REQUESTS),
-            (t.EzspPolicyId.APP_KEY_REQUEST_POLICY,          t.EzspDecisionId.DENY_APP_KEY_REQUESTS),
-            (t.EzspPolicyId.BINDING_MODIFICATION_POLICY,     t.EzspDecisionId.DISALLOW_BINDING_MODIFICATION),
+            (t.EzspPolicyId.TRUST_CENTER_POLICY,                 t.EzspDecisionId.ALLOW_PRECONFIGURED_KEY_JOINS),
+            (t.EzspPolicyId.TC_KEY_REQUEST_POLICY,               t.EzspDecisionId.DENY_TC_KEY_REQUESTS),
+            (t.EzspPolicyId.APP_KEY_REQUEST_POLICY,              t.EzspDecisionId.DENY_APP_KEY_REQUESTS),
+            (t.EzspPolicyId.BINDING_MODIFICATION_POLICY,         t.EzspDecisionId.DISALLOW_BINDING_MODIFICATION),
             (t.EzspPolicyId.MESSAGE_CONTENTS_IN_CALLBACK_POLICY, t.EzspDecisionId.MESSAGE_TAG_ONLY_IN_CALLBACK),
         ]
         for policy_id, decision_id in policies:

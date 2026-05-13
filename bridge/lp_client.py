@@ -152,7 +152,7 @@ class LPClient:
         eui64_hex = _be_to_eui64(be_addr)
         binary = base64.b64decode(data["payload"])
         blocks = split_into_blocks(binary)
-        log.info("← print (cmd_id=%s) for %s — %d block(s)", command_id, be_addr, len(blocks))
+        log.info("← print (cmd_id=%s) for %s - %d block(s)", command_id, be_addr, len(blocks))
         try:
             await self._bridge.send_print_job(eui64_hex, blocks)
             success = True

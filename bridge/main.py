@@ -124,6 +124,9 @@ async def run(args):
         await bridge.start()
         await bridge.preinstall_known_keys(cfg["devices"])
 
+        # Bridge is now running. Rest of this method contains various modes of
+        # operation (run webserver, direct print, etc.) which can be triggered
+        # via CLI args.
         print_target: dict | None = None
         if args.image or args.text or args.personality:
             print_target = {
@@ -325,7 +328,7 @@ async def run_lp_server(args):
                 except asyncio.CancelledError:
                     return
                 except Exception as exc:
-                    log.warning("Server connection lost: %s — reconnecting in %.0fs", exc, delay)
+                    log.warning("Server connection lost: %s - reconnecting in %.0fs", exc, delay)
                     await asyncio.sleep(delay)
                     delay = min(delay * 2, 60)
 
