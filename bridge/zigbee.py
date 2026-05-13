@@ -50,7 +50,7 @@ MAX_APS_PAYLOAD      = 80    # 82 (ZigBee Pro with security) - 2 (APS fragmentat
 # ── EmberStatus integer values (matches bellows/zigpy) ───────────────────────
 EMBER_SUCCESS    = 0x00
 EMBER_NETWORK_UP = 0x90
-EMBER_KEY_TABLE_SIZE = 16
+EMBER_KEY_TABLE_SIZE = 12
 
 class PrinterJoinEvent:
     def __init__(self, node_id: int, eui64_le: bytes, policy_decision: int):
