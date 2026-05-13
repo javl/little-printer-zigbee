@@ -12,6 +12,7 @@ DEFAULT_CHANNEL = 15
 
 
 def _defaults():
+    """ Return a dict of default configuration values. """
     default_port = "COM3" if sys.platform == "win32" else "/dev/ttyUSB0"
     return {
         "ezsp_port": default_port,
@@ -26,6 +27,7 @@ def _defaults():
 
 
 def load(path=CONFIG_PATH):
+    """ Load the configuration from a JSON file. If the file does not exist, create it with default values."""
     if os.path.exists(path):
         with open(path) as f:
             cfg = json.load(f)
@@ -41,11 +43,13 @@ def load(path=CONFIG_PATH):
 
 
 def save(cfg, path=CONFIG_PATH):
+    """ Save the configuration to a JSON file."""
     with open(path, "w") as f:
         json.dump(cfg, f, indent=2)
 
 
 def next_print_id(cfg, path=CONFIG_PATH):
+    """ Get the next print ID from the config, incrementing and saving it back"""
     pid = cfg.get("print_id", 1)
     cfg["print_id"] = (pid % 0xFFFFFFFF) + 1
     save(cfg, path)

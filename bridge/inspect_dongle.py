@@ -8,7 +8,7 @@ zigbee.py _configure_stack() before reading back, so all expected
 values show ✓.
 
 Usage:
-    python -m bridge.inspect_dongle [--port /dev/ttyUSB0] [--baud 115200] [--configure]
+    python -m bridge.inspect_dongle [--port /dev/ttyUSB0] [--baud 115200] [--configure] [--leave-network]
 """
 
 import argparse
@@ -95,6 +95,31 @@ NETWORK_STATE_NAMES = {
 }
 
 
+async def leave_network(ezsp: EZSP):
+    """ Clear stored network from NCP flash by issuing a leaveNetwork() """
+
+    sep("LEAVING NETWORK")
+    # networkInit() must come first: restores stored network to RAM so leaveNetwork() has something to leave.
+    # Without it, leaveNetwork() is a no-op from NO_NETWORK state even if a network exists in flash.
+    try:
+        if ezsp.ezsp_version >= 6:
+            (status,) = await ezsp.networkInit(
+                networkInitBitmask=t.EmberNetworkInitBitmask.NETWORK_INIT_NO_OPTIONS
+            )
+        else:
+            (status,) = await ezsp.networkInit()
+        print(f"  networkInit       : {status}")
+    except Exception as exc:
+        print(f"  networkInit       : (error: {exc})")
+
+    try:
+        (status,) = await ezsp.leaveNetwork()
+        print(f"  leaveNetwork      : {status}")
+        await asyncio.sleep(1.0)
+    except Exception as exc:
+        print(f"  leaveNetwork      : (error: {exc})")
+
+
 async def apply_bridge_config(ezsp: EZSP):
     sep("APPLYING BRIDGE CONFIG")
     for cid, val in BRIDGE_CONFIGS.items():
@@ -133,14 +158,19 @@ def sep(title=""):
         print("─" * width)
 
 
-async def inspect(port: str, baud: int, configure: bool = False):
+async def inspect(port: str, baud: int, configure: bool = False, leave: bool = False):
     print(f"Connecting to {port} at {baud} baud...")
-    if configure:
+    if leave:
+        print("[leave-network mode: clearing stored network from NCP flash, then inspecting]")
+    elif configure:
         print("[configure mode: applying bridge config before read]")
     else:
         print("[read-only mode: values reflect NCP defaults, not bridge-configured state]")
     ezsp = EZSP({"path": port, "baudrate": baud, "flow_control": None})
     await ezsp.connect()
+
+    if leave:
+        await leave_network(ezsp)
 
     # ── Firmware / version ────────────────────────────────────────────────────
     sep("FIRMWARE")
@@ -199,7 +229,7 @@ async def inspect(port: str, baud: int, configure: bool = False):
         except Exception as exc:
             print(f"  (error: {exc})")
     else:
-        print("  No network formed — skipping (state != JOINED_NETWORK)")
+        print("  No network formed - skipping (state != JOINED_NETWORK)")
 
         # Try to read stored parameters anyway (may work on some firmware)
         try:
@@ -310,10 +340,12 @@ def main():
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--configure", action="store_true",
                         help="Apply bridge config before reading (same as zigbee.py _configure_stack)")
+    parser.add_argument("--leave-network", action="store_true",
+                        help="Clear stored network from NCP flash (needed before re-forming with correct settings)")
     args = parser.parse_args()
 
     try:
-        asyncio.run(inspect(args.port, args.baud, configure=args.configure))
+        asyncio.run(inspect(args.port, args.baud, configure=args.configure, leave=args.leave_network))
     except KeyboardInterrupt:
         pass
     except Exception as exc:
