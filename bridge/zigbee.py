@@ -225,7 +225,15 @@ class LittlePrinterBridge:
         # has a network and fires NETWORK_UP at one of the config await points.
         if self._network_up.is_set():
             log.info("Network already up (came up during configuration)")
-            return
+            if await self._ncp_network_matches_config():
+                return
+            log.warning("NCP network does not match config — leaving and re-forming with config values")
+            try:
+                await self._ezsp.leaveNetwork() # pyright: ignore[reportOptionalMemberAccess]
+                await asyncio.sleep(1.0)
+            except Exception as exc:
+                log.warning("leaveNetwork: %s", exc)
+            self._network_up.clear()
 
         try:
             if self._ezsp.ezsp_version >= 6: # pyright: ignore[reportOptionalMemberAccess]
@@ -240,11 +248,43 @@ class LittlePrinterBridge:
 
         if status is not None and int(status) == EMBER_SUCCESS:
             log.info("Restored existing network from NCP")
-            return
+            if await self._ncp_network_matches_config():
+                return
+            log.warning("NCP network does not match config — leaving and re-forming with config values")
+            try:
+                await self._ezsp.leaveNetwork() # pyright: ignore[reportOptionalMemberAccess]
+                await asyncio.sleep(1.0)
+            except Exception as exc:
+                log.warning("leaveNetwork: %s", exc)
+            self._network_up.clear()
 
         log.info("No existing network: forming new one")
         await self._set_security()
         await self._form_network()
+
+    async def _ncp_network_matches_config(self) -> bool:
+        cfg = self._cfg
+        try:
+            status, _node_type, params = await self._ezsp.getNetworkParameters() # pyright: ignore[reportOptionalMemberAccess]
+            if int(status) != EMBER_SUCCESS:
+                return True  # can't read params, don't disturb existing network
+        except Exception as exc:
+            log.debug("getNetworkParameters: %s", exc)
+            return True
+        ncp_epan = bytes(params.extendedPanId).hex()
+        ncp_channel = int(params.radioChannel)
+        cfg_epan = cfg.get("extended_pan_id", "")
+        cfg_channel = cfg.get("channel", 0)
+        cfg_pan_id = cfg.get("pan_id", 0)
+        ncp_pan_id = int(params.panId)
+        match = (ncp_epan == cfg_epan and ncp_channel == cfg_channel
+                 and (cfg_pan_id == 0 or ncp_pan_id == cfg_pan_id))
+        if not match:
+            log.warning(
+                "NCP: EPAN=%s ch=%d PAN=0x%04x  config: EPAN=%s ch=%d PAN=0x%04x",
+                ncp_epan, ncp_channel, ncp_pan_id, cfg_epan, cfg_channel, cfg_pan_id,
+            )
+        return match
 
     async def _set_security(self):
         cfg = self._cfg
