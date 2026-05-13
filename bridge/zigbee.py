@@ -238,6 +238,7 @@ class LittlePrinterBridge:
             raise RuntimeError(f"setInitialSecurityState failed: {status}")
 
     async def _form_network(self):
+        log.info("Forming network...")
         cfg = self._cfg
         epan = bytes.fromhex(cfg["extended_pan_id"])
         channel = cfg["channel"]
