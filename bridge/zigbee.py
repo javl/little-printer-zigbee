@@ -189,10 +189,12 @@ class LittlePrinterBridge:
         # 0x01 means "ALLOW_PRECONFIGURED_KEY_JOINS" in v4 (joins + rejoins OK) but
         # only "ALLOW_JOINS" in v8+ (rejoins blocked). Use 0x03 on v8+ to restore the
         # equivalent behaviour: ALLOW_JOINS | ALLOW_UNSECURED_REJOINS.
-        if self._ezsp.ezsp_version >= 8:  # pyright: ignore[reportOptionalMemberAccess]
-            tc_decision = t.EzspDecisionBitmask.ALLOW_JOINS | t.EzspDecisionBitmask.ALLOW_UNSECURED_REJOINS
-        else:
-            tc_decision = t.EzspDecisionId.ALLOW_PRECONFIGURED_KEY_JOINS
+        # if self._ezsp.ezsp_version >= 8:  # pyright: ignore[reportOptionalMemberAccess]
+        #     tc_decision = t.EzspDecisionBitmask.ALLOW_JOINS | t.EzspDecisionBitmask.ALLOW_UNSECURED_REJOINS
+        # else:
+        #     tc_decision = t.EzspDecisionId.ALLOW_PRECONFIGURED_KEY_JOINS
+        tc_decision = t.EzspDecisionId.ALLOW_PRECONFIGURED_KEY_JOINS
+
         policies = [
             (t.EzspPolicyId.TRUST_CENTER_POLICY,                 tc_decision),
             (t.EzspPolicyId.TC_KEY_REQUEST_POLICY,               t.EzspDecisionId.DENY_TC_KEY_REQUESTS),
