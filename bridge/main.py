@@ -34,6 +34,12 @@ log = logging.getLogger(__name__)
 DENY_JOIN = 0x02
 
 
+def _apply_new_network_params(cfg):
+    cfg_module.new_network_params(cfg)
+    cfg_module.save(cfg)
+    log.info("New network params: EPAN=%s", cfg["extended_pan_id"])
+
+
 def save_to_image(args):
     from .image_encoding import load_image, text_to_image, prepare_image
 
@@ -119,9 +125,11 @@ async def run(args):
     if args.baud:
         cfg["ezsp_baud"] = args.baud
 
+    if args.new_network:
+        _apply_new_network_params(cfg)
     bridge = LittlePrinterBridge(cfg)
     try:
-        await bridge.start()
+        await bridge.start(force_new_network=args.new_network)
         await bridge.preinstall_known_keys(cfg["devices"])
 
         # Bridge is now running. Rest of this method contains various modes of
@@ -237,9 +245,11 @@ async def clear_devices_mode(args):
     if args.baud:
         cfg["ezsp_baud"] = args.baud
 
+    if args.new_network:
+        _apply_new_network_params(cfg)
     bridge = LittlePrinterBridge(cfg)
     try:
-        await bridge.start()
+        await bridge.start(force_new_network=args.new_network)
         ok = await bridge.clear_link_keys()
         if ok:
             cfg["devices"] = {}
@@ -259,9 +269,11 @@ async def serve_mode(args):
     if args.baud:
         cfg["ezsp_baud"] = args.baud
 
+    if args.new_network:
+        _apply_new_network_params(cfg)
     bridge = LittlePrinterBridge(cfg)
     try:
-        await bridge.start()
+        await bridge.start(force_new_network=args.new_network)
         await bridge.preinstall_known_keys(cfg["devices"])
 
         async def join_loop():
@@ -286,9 +298,11 @@ async def run_sirius(args):
     if args.baud:
         cfg["ezsp_baud"] = args.baud
 
+    if args.new_network:
+        _apply_new_network_params(cfg)
     bridge = LittlePrinterBridge(cfg)
     try:
-        await bridge.start()
+        await bridge.start(force_new_network=args.new_network)
         await bridge.preinstall_known_keys(cfg["devices"])
 
         server_url = args.sirius_server or DEFAULT_SIRIUS_SERVER_URL
@@ -320,9 +334,11 @@ async def run_lp_server(args):
     if args.baud:
         cfg["ezsp_baud"] = args.baud
 
+    if args.new_network:
+        _apply_new_network_params(cfg)
     bridge = LittlePrinterBridge(cfg)
     try:
-        await bridge.start()
+        await bridge.start(force_new_network=args.new_network)
         await bridge.preinstall_known_keys(cfg["devices"])
 
         server_url = args.sirius_server or DEFAULT_SERVER_URL
@@ -396,6 +412,7 @@ def main():
     parser.add_argument("--sirius-server", metavar="URL", default=None,
                         help=f"Nord server WebSocket URL (default: {DEFAULT_SIRIUS_SERVER_URL})")
     parser.add_argument("--clear-devices", action="store_true", help="Remove all paired devices from NCP key table and config, then exit")
+    parser.add_argument("--new-network", action="store_true", help="Discard stored network and form a new one with fresh EPAN and key")
     parser.add_argument("--debug", action="store_true", help="Enable DEBUG logging")
     args = parser.parse_args()
 

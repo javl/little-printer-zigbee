@@ -94,7 +94,7 @@ class LittlePrinterBridge:
 
     # ── Startup ───────────────────────────────────────────────────────────────
 
-    async def start(self):
+    async def start(self, force_new_network: bool = False):
         cfg = self._cfg
         log.info("Connecting to EZSP on %s at %d baud", cfg["ezsp_port"], cfg["ezsp_baud"])
 
@@ -105,7 +105,7 @@ class LittlePrinterBridge:
 
         await self._configure_stack()
         await self._set_trust_center_policy()
-        await self._init_or_form_network()
+        await self._init_or_form_network(force=force_new_network)
 
         log.info("Waiting for network to come up...")
         await asyncio.wait_for(self._network_up.wait(), timeout=15.0)
@@ -197,7 +197,30 @@ class LittlePrinterBridge:
             if int(status) != EMBER_SUCCESS:
                 log.warning("setPolicy %s=%s: %s", policy_id, decision_id, status)
 
-    async def _init_or_form_network(self):
+    async def _init_or_form_network(self, force: bool = False):
+        if force:
+            # networkInit first so leaveNetwork has something to act on (same pattern as inspect_dongle.py)
+            if not self._network_up.is_set():
+                try:
+                    if self._ezsp.ezsp_version >= 6: # pyright: ignore[reportOptionalMemberAccess]
+                        await self._ezsp.networkInit( # pyright: ignore[reportOptionalMemberAccess]
+                            networkInitBitmask=t.EmberNetworkInitBitmask.NETWORK_INIT_NO_OPTIONS
+                        )
+                    else:
+                        await self._ezsp.networkInit() # pyright: ignore[reportOptionalMemberAccess]
+                except Exception as exc:
+                    log.info("networkInit (pre-leave): %s", exc)
+            try:
+                await self._ezsp.leaveNetwork() # pyright: ignore[reportOptionalMemberAccess]
+                await asyncio.sleep(1.0)
+            except Exception as exc:
+                log.warning("leaveNetwork: %s", exc)
+            self._network_up.clear()
+            log.info("Forming new network")
+            await self._set_security()
+            await self._form_network()
+            return
+
         # Network can come up via callback during _configure_stack if the NCP already
         # has a network and fires NETWORK_UP at one of the config await points.
         if self._network_up.is_set():

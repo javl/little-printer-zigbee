@@ -26,6 +26,13 @@ def _defaults():
     }
 
 
+def new_network_params(cfg):
+    """Regenerate network identity (EPAN, network key, PAN ID) in place."""
+    cfg["pan_id"] = random.randint(1, 0xFFFE)
+    cfg["extended_pan_id"] = (BERG_EPAN_PREFIX + secrets.token_bytes(4)).hex()
+    cfg["network_key"] = secrets.token_hex(16)
+
+
 def load(path=CONFIG_PATH):
     """ Load the configuration from a JSON file. If the file does not exist, create it with default values."""
     if os.path.exists(path):
