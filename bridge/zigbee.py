@@ -185,8 +185,16 @@ class LittlePrinterBridge:
                 log.info("setValue %s: %s", vid, exc)
 
     async def _set_trust_center_policy(self):
+        # EZSP v8+ uses a bitmask for TC policy; v4–v7 uses an enum.
+        # 0x01 means "ALLOW_PRECONFIGURED_KEY_JOINS" in v4 (joins + rejoins OK) but
+        # only "ALLOW_JOINS" in v8+ (rejoins blocked). Use 0x03 on v8+ to restore the
+        # equivalent behaviour: ALLOW_JOINS | ALLOW_UNSECURED_REJOINS.
+        if self._ezsp.ezsp_version >= 8:  # pyright: ignore[reportOptionalMemberAccess]
+            tc_decision = t.EzspDecisionBitmask.ALLOW_JOINS | t.EzspDecisionBitmask.ALLOW_UNSECURED_REJOINS
+        else:
+            tc_decision = t.EzspDecisionId.ALLOW_PRECONFIGURED_KEY_JOINS
         policies = [
-            (t.EzspPolicyId.TRUST_CENTER_POLICY,                 t.EzspDecisionId.ALLOW_PRECONFIGURED_KEY_JOINS),
+            (t.EzspPolicyId.TRUST_CENTER_POLICY,                 tc_decision),
             (t.EzspPolicyId.TC_KEY_REQUEST_POLICY,               t.EzspDecisionId.DENY_TC_KEY_REQUESTS),
             (t.EzspPolicyId.APP_KEY_REQUEST_POLICY,              t.EzspDecisionId.DENY_APP_KEY_REQUESTS),
             (t.EzspPolicyId.BINDING_MODIFICATION_POLICY,         t.EzspDecisionId.DISALLOW_BINDING_MODIFICATION),
@@ -354,7 +362,7 @@ class LittlePrinterBridge:
                 params.radioChannel,
                 epan,
                 params.panId,
-                epan.startswith("42455247"),
+                epan.endswith("47524542"),
             )
         except Exception as exc:
             log.warning("Could not read network parameters: %s", exc)
@@ -649,7 +657,7 @@ class LittlePrinterBridge:
             int(node_id), eui64_hex, int(policy_decision),
         )
 
-        if int(policy_decision) == 0x00:  # USE_PRECONFIGURED_KEY: join accepted
+        if int(policy_decision) in (0x00, 0x03):  # USE_PRECONFIGURED_KEY or NO_ACTION (secure rejoin)
             self._set_addr(eui64_hex, int(node_id))
 
         event = PrinterJoinEvent(int(node_id), eui64_le, int(policy_decision))

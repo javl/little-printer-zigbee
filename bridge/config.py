@@ -6,7 +6,7 @@ import sys
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
 
-BERG_EPAN_PREFIX = bytes([0x42, 0x45, 0x52, 0x47])  # "BERG"
+BERG_EPAN_SUFFIX_LE = bytes([0x47, 0x52, 0x45, 0x42])  # "BERG" reversed for little-endian EZSP
 BERG_CHANNELS = [11, 14, 15, 19, 20, 24, 25]
 DEFAULT_CHANNEL = 15
 
@@ -19,7 +19,7 @@ def _defaults():
         "ezsp_baud": 115200,
         "channel": DEFAULT_CHANNEL,
         "pan_id": random.randint(1, 0xFFFE),
-        "extended_pan_id": (BERG_EPAN_PREFIX + secrets.token_bytes(4)).hex(),
+        "extended_pan_id": (secrets.token_bytes(4) + BERG_EPAN_SUFFIX_LE).hex(),
         "network_key": secrets.token_hex(16),
         "print_id": 1,
         "devices": {},
@@ -29,7 +29,7 @@ def _defaults():
 def new_network_params(cfg):
     """Regenerate network identity (EPAN, network key, PAN ID) in place."""
     cfg["pan_id"] = random.randint(1, 0xFFFE)
-    cfg["extended_pan_id"] = (BERG_EPAN_PREFIX + secrets.token_bytes(4)).hex()
+    cfg["extended_pan_id"] = (secrets.token_bytes(4) + BERG_EPAN_SUFFIX_LE).hex()
     cfg["network_key"] = secrets.token_hex(16)
 
 
