@@ -305,7 +305,7 @@ async def run_sirius(args):
         await bridge.start(force_new_network=args.new_network)
         await bridge.preinstall_known_keys(cfg["devices"])
 
-        server_url = args.sirius_server or DEFAULT_SIRIUS_SERVER_URL
+        server_url = args.sirius_server_url
         sirius = SiriusClient(bridge, cfg, server_url)
         await sirius.connect()
 
@@ -341,7 +341,7 @@ async def run_lp_server(args):
         await bridge.start(force_new_network=args.new_network)
         await bridge.preinstall_known_keys(cfg["devices"])
 
-        server_url = args.sirius_server or DEFAULT_SERVER_URL
+        server_url = args.lp_server_url
         lp_server = LPClient(bridge, cfg, server_url)
 
         join_queue: asyncio.Queue = asyncio.Queue()
@@ -408,8 +408,9 @@ def main():
                         help="HTTP port (default: 8080)")
     parser.add_argument("--to-image", action="store_true", help="Write the result to print.jpg instead of sending to printer, useful for debugging without a Zigbee module or printer")
     parser.add_argument("--lp-server", action="store_true", help="Connect to (new) server as client")
+    parser.add_argument("--lp-server-url", metavar="URL", default=DEFAULT_SERVER_URL, help="URL of the LP server to connect to")
     parser.add_argument("--sirius", action="store_true", help="Connect to Nord server (Sirius) as a Berg bridge client")
-    parser.add_argument("--sirius-server", metavar="URL", default=None,
+    parser.add_argument("--sirius-server-url", metavar="URL", default=DEFAULT_SIRIUS_SERVER_URL,
                         help=f"Nord server WebSocket URL (default: {DEFAULT_SIRIUS_SERVER_URL})")
     parser.add_argument("--clear-devices", action="store_true", help="Remove all paired devices from NCP key table and config, then exit")
     parser.add_argument("--new-network", action="store_true", help="Discard stored network and form a new one with fresh EPAN and key")
