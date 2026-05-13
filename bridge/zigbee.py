@@ -50,7 +50,7 @@ MAX_APS_PAYLOAD      = 80    # 82 (ZigBee Pro with security) - 2 (APS fragmentat
 # ── EmberStatus integer values (matches bellows/zigpy) ───────────────────────
 EMBER_SUCCESS    = 0x00
 EMBER_NETWORK_UP = 0x90
-EMBER_KEY_TABLE_SIZE = 12
+EMBER_KEY_TABLE_SIZE = 16
 
 class PrinterJoinEvent:
     def __init__(self, node_id: int, eui64_le: bytes, policy_decision: int):
@@ -163,7 +163,7 @@ class LittlePrinterBridge:
             t.EzspConfigId.CONFIG_FRAGMENT_WINDOW_SIZE:            8,
             t.EzspConfigId.CONFIG_FRAGMENT_DELAY_MS:               0,
             t.EzspConfigId.CONFIG_END_DEVICE_POLL_TIMEOUT:         1,
-            # t.EzspConfigId.CONFIG_END_DEVICE_POLL_TIMEOUT_SHIFT:   6,
+            t.EzspConfigId.CONFIG_END_DEVICE_POLL_TIMEOUT_SHIFT:    6,
             t.EzspConfigId.CONFIG_TX_POWER_MODE:                   1,  # EMBER_TX_POWER_MODE_BOOST
             t.EzspConfigId.CONFIG_DISABLE_RELAY:                   1,
             t.EzspConfigId.CONFIG_MAX_HOPS:                        30,
