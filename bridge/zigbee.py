@@ -137,6 +137,19 @@ class LittlePrinterBridge:
             except Exception as exc:
                 log.warning("Could not preinstall key for %s: %s", eui64_hex, exc)
 
+    async def clear_link_keys(self):
+        """Remove all link keys from the NCP key table."""
+        try:
+            (status,) = await self._ezsp.clearKeyTable() # pyright: ignore[reportOptionalMemberAccess]
+            if int(status) != EMBER_SUCCESS:
+                log.warning("clearKeyTable: %s", status)
+                return False
+            log.info("NCP key table cleared")
+            return True
+        except Exception as exc:
+            log.warning("clearKeyTable failed: %s", exc)
+            return False
+
     # ── Stack setup ───────────────────────────────────────────────────────────
 
     async def _configure_stack(self):
@@ -547,7 +560,7 @@ class LittlePrinterBridge:
             elif frame_name == "messageSentHandler":
                 self._handle_message_sent(args)
             else:
-                log.info("EZSP frame: %s %s", frame_name, args)
+                log.info("Unknown EZSP frame: %s %s", frame_name, args)
         except Exception:
             log.exception("Error in EZSP callback %s", frame_name)
 

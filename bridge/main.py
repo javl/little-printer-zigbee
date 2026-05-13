@@ -229,7 +229,30 @@ async def _run_forever(bridge: LittlePrinterBridge, cfg: dict):
         pass
 
 
+async def clear_devices_mode(args):
+    """ Clear all paired devices from NCP key table and config, then exit."""
+    cfg = cfg_module.load()
+    if args.port:
+        cfg["ezsp_port"] = args.port
+    if args.baud:
+        cfg["ezsp_baud"] = args.baud
+
+    bridge = LittlePrinterBridge(cfg)
+    try:
+        await bridge.start()
+        ok = await bridge.clear_link_keys()
+        if ok:
+            cfg["devices"] = {}
+            cfg_module.save(cfg)
+            print("Cleared all devices from NCP key table and config.")
+        else:
+            print("Failed to clear NCP key table; config not modified.", file=sys.stderr)
+    finally:
+        await bridge.stop()
+
+
 async def serve_mode(args):
+    """ Run in HTTP server mode, allowing prints to be sent via HTTP and monitoring printer joins. """
     cfg = cfg_module.load()
     if args.port:
         cfg["ezsp_port"] = args.port
@@ -255,6 +278,8 @@ async def serve_mode(args):
         await bridge.stop()
 
 async def run_sirius(args):
+    """ Run in Sirius mode, connecting to a Nord server as a Berg bridge client.
+    This is legacy mode for compatibility with the original Sirius implementation"""
     cfg = cfg_module.load()
     if args.port:
         cfg["ezsp_port"] = args.port
@@ -288,6 +313,7 @@ async def run_sirius(args):
         await bridge.stop()
 
 async def run_lp_server(args):
+    """ Run in the new server mode, connecting to our more modern server """
     cfg = cfg_module.load()
     if args.port:
         cfg["ezsp_port"] = args.port
@@ -369,6 +395,7 @@ def main():
     parser.add_argument("--sirius", action="store_true", help="Connect to Nord server (Sirius) as a Berg bridge client")
     parser.add_argument("--sirius-server", metavar="URL", default=None,
                         help=f"Nord server WebSocket URL (default: {DEFAULT_SIRIUS_SERVER_URL})")
+    parser.add_argument("--clear-devices", action="store_true", help="Remove all paired devices from NCP key table and config, then exit")
     parser.add_argument("--debug", action="store_true", help="Enable DEBUG logging")
     args = parser.parse_args()
 
@@ -384,7 +411,9 @@ def main():
         return
 
     try:
-        if args.serve:
+        if args.clear_devices:
+            asyncio.run(clear_devices_mode(args))
+        elif args.serve:
             asyncio.run(serve_mode(args))
         elif args.sirius:  # legacy sirius mode
             asyncio.run(run_sirius(args))
